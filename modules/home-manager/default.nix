@@ -12,6 +12,7 @@
         packages = with pkgs; [
             neofetch
             ripgrep
+            eza 
         ];
     };
 
@@ -28,6 +29,8 @@
                 rebuild = "sudo nixos-rebuild switch --flake ~/tmp_infra/.";
                 vim = "nvim";
                 gst = "git status";
+                ls = "eza --color=always --color-scale=all --color-scale-mode=gradient --icons=always --group-directories-first";
+                tree = "eza --color=always --color-scale=all --color-scale-mode=gradient --icons=always --group-directories-first --tree";
             };
         };
     };
