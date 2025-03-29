@@ -34,18 +34,23 @@
     networking.firewall.allowedUDPPorts = [
 # 8472 # k3s, flannel: required if using multi-node for inter-node networking
     ];
-    services.k3s.enable = true;
-    services.k3s.role = "server";
 
-    services.openssh = {
-        enable = true;
-        ports = [ 22 ];
-        settings = {
-            PasswordAuthentication = true;
-            AllowUsers = null;
-            UseDns = true;
-            X11Forwarding = false;
-            PermitRootLogin = "prohibit-password";
+    services = {
+        k3s = {
+            enable = true;
+            role = "server";
+        };
+
+        openssh = {
+            enable = true;
+            ports = [ 22 ];
+            settings = {
+                PasswordAuthentication = true;
+                AllowUsers = null;
+                UseDns = true;
+                X11Forwarding = false;
+                PermitRootLogin = "prohibit-password";
+            };
         };
     };
 
