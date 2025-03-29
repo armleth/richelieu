@@ -12,7 +12,10 @@
         packages = with pkgs; [
             neofetch
             ripgrep
+            fzf
             eza 
+            dwt1-shell-color-scripts
+            nixd
         ];
     };
 
