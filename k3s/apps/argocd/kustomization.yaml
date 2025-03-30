@@ -6,6 +6,6 @@ namespace: argocd
 
 resources:
   - namespace.yaml
-  - https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/ha/install.yaml
+  - github.com/argoproj/argo-cd/manifests/cluster-install?ref=v2.9.1
   - ingress.yaml
   - apps/

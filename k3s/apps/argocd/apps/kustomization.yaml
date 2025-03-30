@@ -6,3 +6,4 @@ namespace: argocd
 
 resources:
   - argocd.yaml
+  - nextcloud.yaml
