@@ -9,3 +9,10 @@ resources:
   - github.com/argoproj/argo-cd/manifests/cluster-install?ref=v2.9.1
   - ingress.yaml
   - apps/
+  - secret-richelieu-tls.yaml
+
+patches:
+  - path: patch-argocd-cm.yaml
+    target:
+      kind: ConfigMap
+      name: argocd-cmd-params-cm

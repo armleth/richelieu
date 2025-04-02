@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://github.com/lucassiauve/tmp_infra.git
     targetRevision: HEAD
-    path: k3s/apps/argocd
+    path: k8s/apps/argocd
   destination:
     name: in-cluster
     namespace: argocd
