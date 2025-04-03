@@ -1,0 +1,8 @@
+---
+kind: Kustomization
+namespace: postgres
+
+resources:
+  - namespace.yml
+  - postgres.yml
+  - statefulset.yaml
