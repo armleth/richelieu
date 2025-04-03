@@ -3,6 +3,6 @@ kind: Kustomization
 namespace: postgres
 
 resources:
-  - namespace.yml
+  # - namespace.yml
   - postgres.yml
   - statefulset.yaml
