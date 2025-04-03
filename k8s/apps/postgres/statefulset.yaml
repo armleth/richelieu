@@ -24,7 +24,7 @@ spec:
             - containerPort: 5432
           envFrom:
             - secretRef:
-              name: postgres-secret
+                name: postgres-secret
           volumeMounts:
             - name: postgres-data
               mountPath: /data/db
@@ -38,3 +38,4 @@ spec:
         resources:
           requests:
             storage: 20Gi
+            memory: 500Mi
