@@ -15,32 +15,3 @@ spec:
           port: 8080
   tls:
     secretName: armleth-tls-secret
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: keycloak-home-redirect
-  namespace: keycloak
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - match: Host(`auth.kektus.fr`) && Path(`/`)
-      kind: Rule
-      middlewares:
-        - name: keycloak-redirect
-      services:
-        - name: keycloak
-          port: 80
-  tls:
-    secretName: armleth-tls-secret
----
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: keycloak-redirect
-spec:
-  redirectRegex:
-    regex: ^https://(.*)/$
-    replacement: https://$1/realms/kektus/account
-    permanent: true
