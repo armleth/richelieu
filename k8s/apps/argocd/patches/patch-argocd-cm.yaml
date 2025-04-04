@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  url: https://argocd.richelieu.armleth.fr
+  oidc.config: |
+    name: Keycloak
+    issuer: https://auth.armleth.fr/realms/master
+    clientID: argocd
+    clientSecret: $keycloak-client-secret:client-secret
+    requestedScopes: ["openid", "profile", "email", "groups"]

@@ -11,7 +11,11 @@ resources:
   - templates/
 
 patches:
-  - path: patch-argocd-cm.yaml
+  - path: patches/patch-argocd-cmd-params-cm.yaml
     target:
       kind: ConfigMap
       name: argocd-cmd-params-cm
+  - path: patches/patch-argocd-cm.yaml
+    target:
+      kind: ConfigMap
+      name: argocd-cm
