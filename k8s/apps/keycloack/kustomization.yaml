@@ -11,7 +11,7 @@ configMapGenerator:
   - name: keycloak-config
     literals:
       - KC_DB=postgres
-      - KC_DB_URL=jdbc:postgresql://postgres.svc.cluster.local/
+      - KC_DB_URL=jdbc:postgresql://postgres.svc.cluster.local:5432/postgres
       - KC_HOSTNAME=auth.armleth.fr
       - KC_HEALTH_ENABLED=true
       - KEYCLOAK_ADMIN=admin
