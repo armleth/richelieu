@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: keycloak
-          image: keycloak
+          image: quay.io/keycloak/keycloak:latest
           args: ["start", "--optimized"]
           envFrom:
             - configMapRef:
@@ -26,18 +26,18 @@ spec:
             - name: KC_DB_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: keycloak.keycloak.acid-main-cluster.credentials
-                  key: username
+                  name: keycloack-user
+                  key: POSTGRES_USER
             - name: KC_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: keycloak.keycloak.acid-main-cluster.credentials
-                  key: password
+                  name: keycloack-secret
+                  key: POSTGRES_PASSWORD
             - name: KEYCLOAK_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: keycloak-admin-password
-                  key: password
+                  name: keycloack-secret
+                  key: POSTGRES_PASSWORD
           ports:
             - name: http
               containerPort: 8080
