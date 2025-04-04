@@ -8,3 +8,4 @@ resources:
   - argocd.yaml
   - nextcloud.yaml
   - postgres.yaml
+  - keycloack.yaml
