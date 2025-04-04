@@ -12,6 +12,6 @@ spec:
       match: Host(`auth.armleth.fr`)
       services:
         - name: keycloack
-          port: 80
+          port: 8080
   tls:
     secretName: armleth-tls-secret
