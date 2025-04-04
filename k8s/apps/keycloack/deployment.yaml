@@ -18,7 +18,7 @@ spec:
       containers:
         - name: keycloak
           image: quay.io/keycloak/keycloak:latest
-          args: ["start"]
+          args: ["start --hostname auth.armleth.fr"]
           envFrom:
             - configMapRef:
                 name: keycloak-config
