@@ -11,6 +11,8 @@ resources:
 configMapGenerator:
   - name: keycloak-config
     literals:
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HTTP_ENABLED=true
       - KC_DB=postgres
       - KC_DB_URL=jdbc:postgresql://postgres.postgres.svc.cluster.local:5432/postgres
       - KC_HOSTNAME=auth.armleth.fr
