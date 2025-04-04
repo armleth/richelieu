@@ -10,9 +10,9 @@ spec:
   routes:
     - kind: Rule
       match: Host(`auth.armleth.fr`)
-      priority: 10
       services:
         - name: keycloack
-          port: 80
+          port:
+            number: 8080
   tls:
     secretName: armleth-tls-secret
