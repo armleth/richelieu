@@ -26,17 +26,17 @@ spec:
             - name: KC_DB_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: keycloack-secret
+                  name: keycloak-secret
                   key: POSTGRES_USER
             - name: KC_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: keycloack-secret
+                  name: keycloak-secret
                   key: POSTGRES_PASSWORD
             - name: KEYCLOAK_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: keycloack-secret
+                  name: keycloak-secret
                   key: POSTGRES_PASSWORD
           ports:
             - name: http

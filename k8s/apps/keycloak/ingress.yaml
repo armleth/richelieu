@@ -2,8 +2,8 @@
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: keycloack
-  namespace: keycloack
+  name: keycloak
+  namespace: keycloak
 spec:
   entryPoints:
     - websecure
@@ -11,7 +11,7 @@ spec:
     - kind: Rule
       match: Host(`auth.armleth.fr`)
       services:
-        - name: keycloack
+        - name: keycloak
           port: 8080
   tls:
     secretName: armleth-tls-secret
