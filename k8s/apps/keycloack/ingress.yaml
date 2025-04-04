@@ -12,7 +12,7 @@ spec:
       match: Host(`auth.armleth.fr`)
       priority: 10
       services:
-        - name: argocd-server
+        - name: keycloack
           port: 80
   tls:
     secretName: armleth-tls-secret
