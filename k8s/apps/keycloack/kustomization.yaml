@@ -4,9 +4,10 @@ kind: Kustomization
 namespace: keycloack
 
 resources:
-  - namespace.yaml
   - deployment.yaml
   - ingress.yaml
+  - namespace.yaml
+  - service.yaml
 
 configMapGenerator:
   - name: keycloak-config
