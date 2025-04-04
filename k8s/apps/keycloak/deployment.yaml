@@ -33,11 +33,16 @@ spec:
                 secretKeyRef:
                   name: keycloak-secret
                   key: POSTGRES_PASSWORD
-            - name: KEYCLOAK_ADMIN_PASSWORD
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: keycloak-secret
-                  key: POSTGRES_PASSWORD
+                  key: kc-username
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: kc-password
           ports:
             - name: http
               containerPort: 8080
