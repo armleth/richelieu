@@ -10,5 +10,5 @@ data:
     name: Keycloak
     issuer: https://auth.armleth.fr/realms/master
     clientID: argocd
-    clientSecret: $keycloak-client-secret:oidc.keycloak.clientSecret
+    clientSecret: $oidc.keycloak.clientSecret
     requestedScopes: ["openid", "profile", "email", "groups"]
