@@ -6,9 +6,21 @@ metadata:
   namespace: argocd
 data:
   url: https://argocd.richelieu.armleth.fr
-  oidc.config: |
-    name: Keycloak
-    issuer: https://auth.armleth.fr/realms/master
-    clientID: argocd
-    clientSecret: $oidc.keycloak.clientSecret
-    requestedScopes: ["openid", "profile", "email", "groups"]
+  # oidc.config: |
+  #   name: Keycloak
+  #   issuer: https://auth.armleth.fr/realms/master
+  #   clientID: argocd
+  #   clientSecret: $oidc.keycloak.clientSecret
+  #   requestedScopes: ["openid", "profile", "email", "groups"]
+  dex.config: |
+    connectors:
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID: Ov23liRttk4MZc05VOiX
+          clientSecret: $argocd-secrets:dex.github.clientSecret
+          orgs:
+          - name: RichelieuInfrastructure
+          teams:
+          - argocd-admin
