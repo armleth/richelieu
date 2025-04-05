@@ -19,7 +19,7 @@ data:
         name: GitHub
         config:
           clientID: Ov23liRttk4MZc05VOiX
-          clientSecret: $argocd-secrets:dex.github.clientSecret
+          clientSecret: $dex.github.clientSecret
           orgs:
           - name: RichelieuInfrastructure
           teams:
