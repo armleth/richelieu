@@ -5,6 +5,7 @@ metadata:
   name: argocd-cm
   namespace: argocd
 data:
+  admin.enabled: "false"
   url: https://argocd.richelieu.armleth.fr
   oidc.tls.insecure.skip.verify: "true"
   oidc.config: |
