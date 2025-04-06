@@ -8,7 +8,7 @@ data:
   url: https://argocd.richelieu.armleth.fr
   oidc.tls.insecure.skip.verify: "true"
   oidc.config: |
-    name: Keycloak
+    name: Richelieu
     issuer: https://auth.armleth.fr/realms/master
     clientID: argocd
     clientSecret: $oidc.keycloak.clientSecret
