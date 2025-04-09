@@ -1,0 +1,30 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: bbox-redirect
+  namespace: keycloak
+spec:
+  redirectRegex:
+    regex: ^https?://bbox\.armleth\.fr/(.*)
+    replacement: https://192.168.1.254/
+    permanent: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: bbox
+  namespace: keycloak
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`bbox.armleth.fr`)
+      middlewares:
+        - name: bbox-redirect
+      services:
+        - name: noop
+          port: 65535  # Non-existent dummy service
+  tls:
+    secretName: armleth-tls-secret
