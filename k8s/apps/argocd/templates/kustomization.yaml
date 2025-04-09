@@ -6,6 +6,7 @@ namespace: argocd
 
 resources:
   - argocd.yaml
+  - bbox.yaml
+  - keycloak.yaml
   - nextcloud.yaml
   - postgres.yaml
-  - keycloak.yaml
