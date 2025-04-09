@@ -5,6 +5,6 @@ metadata:
   name: bbox
 spec:
   type: ExternalName
-  externalName: https://mabbox.bytel.fr/
+  externalName: mabbox.bytel.fr
   ports:
     - port: 443
