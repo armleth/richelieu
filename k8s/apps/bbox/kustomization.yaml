@@ -5,5 +5,7 @@ kind: Kustomization
 namespace: keycloak
 
 resources:
+  - configmap.yaml
+  - deployment.yaml
   - ingress.yaml
   - service.yaml
