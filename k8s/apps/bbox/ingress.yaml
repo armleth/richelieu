@@ -2,7 +2,7 @@
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: box-ingressroute
+  name: bbox-ingressroute
   namespace: keycloak
 spec:
   entryPoints:
@@ -11,7 +11,7 @@ spec:
     - match: Host(`bbox.armleth.fr`)
       kind: Rule
       services:
-        - name: box-proxy-service
+        - name: bbox-proxy-service
           port: 80
   tls:
     secretName: armleth-tls-secret

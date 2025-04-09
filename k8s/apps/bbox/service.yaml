@@ -2,11 +2,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: box-proxy-service
+  name: bbox-proxy-service
   namespace: keycloak
 spec:
   selector:
-    app: box-proxy
+    app: bbox-proxy
   ports:
     - protocol: TCP
       port: 80

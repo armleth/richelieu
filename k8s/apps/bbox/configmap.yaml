@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: box-proxy-config
+  name: bbox-proxy-config
   namespace: keycloak
 data:
   default.conf: |
