@@ -10,3 +10,4 @@ resources:
   - keycloak.yaml
   - nextcloud.yaml
   - postgres.yaml
+  - vault.yaml
