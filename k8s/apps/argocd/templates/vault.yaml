@@ -14,7 +14,7 @@ spec:
       targetRevision: 0.28.0
       helm:
         valueFiles:
-        - ../../vault/vault.yaml
+        - values/vault-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: vault
