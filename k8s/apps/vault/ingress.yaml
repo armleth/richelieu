@@ -3,7 +3,7 @@ apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: vault
-  namespace: keycloak
+  namespace: vault
 spec:
   entryPoints:
     - websecure
