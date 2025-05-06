@@ -37,6 +37,7 @@ spec:
             dataStorage:
               enabled: true
               size: 10Gi
+              storageClass: local-path
 
             readinessProbe:
               enabled: true
