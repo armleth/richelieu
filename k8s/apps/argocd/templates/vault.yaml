@@ -16,23 +16,21 @@ spec:
         releaseName: vault
         values: |
           server:
-            ha:
+            enabled: true
+            sandalone:
               enabled: true
-              replicas: 1
-              raft:
-                enabled: true
-                config: |
-                  ui = true
-                  cluster_name = "vault-integrated-storage"
+              config: |
+                ui = true
+                disable_mlock = true
 
-                  listener "tcp" {
-                    address     = "0.0.0.0:8200"
-                    tls_disable = 1
-                  }
+                listener "tcp" {
+                  address     = "0.0.0.0:8200"
+                  tls_disable = 1
+                }
 
-                  storage "raft" {
-                    path = "/vault/data"
-                  }
+                storage "file" {
+                  path = "/vault/data"
+                }
 
             dataStorage:
               enabled: true
