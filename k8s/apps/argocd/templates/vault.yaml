@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: vault
-  namespace: keycloak
+  namespace: vault
 spec:
   project: default
   syncPolicy:
@@ -14,4 +14,4 @@ spec:
     path: k8s/apps/vault
   destination:
     name: in-cluster
-    namespace: keycloak
+    namespace: vault
