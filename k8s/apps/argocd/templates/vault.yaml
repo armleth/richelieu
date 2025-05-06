@@ -39,15 +39,6 @@ spec:
               size: 10Gi
               storageClass: local-path
 
-            readinessProbe:
-              enabled: true
-              path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
-
-            livenessProbe:
-              enabled: true
-              path: "/v1/sys/health?standbyok=true"
-              initialDelaySeconds: 60
-
             resources:
               requests:
                 memory: 128Mi
