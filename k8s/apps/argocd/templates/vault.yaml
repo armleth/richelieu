@@ -5,13 +5,22 @@ metadata:
   namespace: vault
 spec:
   project: default
+  sources:
+    - repoURL: https://github.com/armleth/richelieu.git
+      targetRevision: HEAD
+      path: k8s/apps/vault
+    - repoURL: https://helm.releases.hashicorp.com
+      chart: vault
+      targetRevision: 0.28.0
+      helm:
+        valueFiles:
+        - ../../vault/vault.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
   syncPolicy:
     automated:
       prune: true
-  source:
-    repoURL: https://github.com/armleth/richelieu.git
-    targetRevision: HEAD
-    path: k8s/apps/vault
-  destination:
-    name: in-cluster
-    namespace: vault
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
