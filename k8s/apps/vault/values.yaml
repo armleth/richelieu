@@ -1,0 +1,61 @@
+server:
+  ha:
+    enabled: true
+    replicas: 1
+
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: standard
+
+  haStorage:
+    raft:
+      enabled: true
+      config: |
+        ui = true
+
+        listener "tcp" {
+          address     = "0.0.0.0:8200"
+          tls_disable = 1
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
+
+  readinessProbe:
+    enabled: true
+
+  livenessProbe:
+    enabled: true
+
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 125m
+    limits:
+      memory: 256Mi
+      cpu: 250m
+
+  extraEnvironmentVars:
+    VAULT_ADDR: "http://127.0.0.1:8200"
+
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 8200
+
+  ingress:
+    enabled: false
+
+  affinity: {}
+
+  tolerations: []
+
+injector:
+  enabled: false
+
+csi:
+  enabled: false
