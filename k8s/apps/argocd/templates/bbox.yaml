@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: bbox
-  namespace: keycloak
+  namespace: argocd
 spec:
   project: default
   syncPolicy:
@@ -14,4 +14,4 @@ spec:
     path: k8s/apps/bbox
   destination:
     name: in-cluster
-    namespace: keycloak
+    namespace: bbox

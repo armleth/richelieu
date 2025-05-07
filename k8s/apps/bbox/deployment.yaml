@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bbox-proxy
-  namespace: keycloak
+  namespace: bbox
 spec:
   replicas: 1
   selector:
