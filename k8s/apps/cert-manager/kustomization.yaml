@@ -4,6 +4,4 @@ kind: Kustomization
 namespace: cert-manager
 
 resources:
-  - github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
-  # - namespace.yaml
-  # - service.yaml
+  - default-issuer.yaml

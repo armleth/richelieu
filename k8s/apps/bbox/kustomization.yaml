@@ -11,3 +11,4 @@ resources:
   - namespace.yaml
   - secrets.yaml
   - service.yaml
+  - cert-bbox.yaml

@@ -1,0 +1,14 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: bbox-tls
+  namespace: bbox
+spec:
+  secretName: bbox-tls
+  commonName: bbox.armleth.fr
+  dnsNames:
+    - bbox.armleth.fr
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
