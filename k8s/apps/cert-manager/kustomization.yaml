@@ -4,6 +4,6 @@ kind: Kustomization
 namespace: cert-manager
 
 resources:
-  - namespace.yaml
+  - github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+  # - namespace.yaml
   # - service.yaml
-  - https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
