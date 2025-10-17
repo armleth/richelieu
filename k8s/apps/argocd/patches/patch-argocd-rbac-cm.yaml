@@ -1,17 +1,17 @@
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-rbac-cm
-data:
-  policy.csv: |
-    g, ArgoCDAdmins, role:admin
 # ---
 # apiVersion: v1
 # kind: ConfigMap
 # metadata:
 #   name: argocd-rbac-cm
 # data:
-#   policy.default: role:denied
 #   policy.csv: |
-#     g, RichelieuInfrastructure:argocd-admin, role:admin
+#     g, ArgoCDAdmins, role:admin
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+data:
+  policy.default: role:denied
+  policy.csv: |
+    g, RichelieuInfrastructure:argocd-admin, role:admin
