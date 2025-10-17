@@ -14,15 +14,15 @@ data:
     clientID: argocd
     clientSecret: $oidc.keycloak.clientSecret
     requestedScopes: ["openid", "profile", "email", "groups"]
-  # dex.config: |
-  #   connectors:
-  #     - type: github
-  #       id: github
-  #       name: GitHub
-  #       config:
-  #         clientID: Ov23liRttk4MZc05VOiX
-  #         clientSecret: $dex.github.clientSecret
-  #         orgs:
-  #         - name: RichelieuInfrastructure
-  #         teams:
-  #         - argocd-admin
+  dex.config: |
+    connectors:
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID: Ov23liRttk4MZc05VOiX
+          clientSecret: $dex.github.clientSecret
+          orgs:
+          - name: RichelieuInfrastructure
+          teams:
+          - argocd-admin

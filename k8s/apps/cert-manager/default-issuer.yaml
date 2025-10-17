@@ -3,12 +3,15 @@ kind: ClusterIssuer
 metadata:
   name: letsencrypt-prod
 spec:
-  acme:
+  dns01:
     email: armleth@proton.me
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
-      - http01:
-          ingress:
-            class: traefik
+      - dns01:
+        cloudflare:
+          email: armleth@proton.me
+          apiTokenSecretRef:
+            name: cloudflare-api-key
+            key: api-token
