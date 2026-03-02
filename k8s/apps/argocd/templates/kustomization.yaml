@@ -3,3 +3,6 @@ kind: Kustomization
 
 resources:
   - argocd.yaml
+  - vault.yaml
+  - external-secrets.yaml
+  - external-secrets-config.yaml
