@@ -10,24 +10,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: registry-1.docker.io/bitnamicharts
-    chart: keycloak
-    targetRevision: 25.2.0
-    helm:
-      values: |
-        production: true
-        proxyHeaders: xforwarded
-        httpRelativePath: /
-        auth:
-          adminUser: admin
-        postgresql:
-          enabled: true
-        service:
-          type: ClusterIP
-          ports:
-            http: 80
-        tls:
-          enabled: false
+    repoURL: https://github.com/armleth/richelieu_try.git
+    targetRevision: HEAD
+    path: k8s/apps/keycloak
   destination:
     server: https://kubernetes.default.svc
     namespace: keycloak
