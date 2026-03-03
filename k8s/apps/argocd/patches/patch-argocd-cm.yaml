@@ -7,7 +7,7 @@ data:
   accounts.admin.enabled: "true"
   oidc.config: |
     name: Keycloak
-    issuer: https://keycloak.armleth.fr/realms/infrastructure
+    issuer: https://auth.armleth.fr/realms/infrastructure
     clientID: argocd
     clientSecret: $argocd-oidc-secret:oidc.keycloak.clientSecret
     requestedScopes:

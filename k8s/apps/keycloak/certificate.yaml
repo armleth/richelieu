@@ -9,4 +9,4 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    - keycloak.armleth.fr
+    - auth.armleth.fr

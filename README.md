@@ -42,8 +42,8 @@ k8s/
       deployment.yaml                       # Keycloak 26.1 (quay.io/keycloak/keycloak)
       service.yaml                          # Keycloak Service
       admin-secret.yaml                     # Keycloak admin credentials
-      ingress.yaml                          # IngressRoute for keycloak.armleth.fr
-      certificate.yaml                      # TLS certificate for keycloak.armleth.fr
+      ingress.yaml                          # IngressRoute for auth.armleth.fr
+      certificate.yaml                      # TLS certificate for auth.armleth.fr
       external-secret-argocd-oidc.yaml      # OIDC client secret for ArgoCD (from Vault)
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, OIDC auth
@@ -135,6 +135,7 @@ export VAULT_TOKEN=$(jq -r '.root_token' vault-init.json)
 
 ARGOCD_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw argocd_client_secret)
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"
+cd ../..
 
 VAULT_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw vault_client_secret)
 cd terraform/vault
@@ -144,7 +145,7 @@ cd ../..
 
 ### 9. Create your Keycloak user
 
-Log in to `https://keycloak.armleth.fr`, switch to the `infrastructure` realm, create a user and add them to the `admins` group.
+Log in to `https://auth.armleth.fr`, switch to the `infrastructure` realm, create a user and add them to the `admins` group.
 
 ## Adding a TLS certificate
 

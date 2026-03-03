@@ -10,7 +10,7 @@ resource "vault_jwt_auth_backend" "keycloak" {
 
   type               = "oidc"
   path               = "oidc"
-  oidc_discovery_url = "http://keycloak.keycloak.svc.cluster.local/realms/infrastructure"
+  oidc_discovery_url = "https://auth.armleth.fr/realms/infrastructure"
   oidc_client_id     = "vault"
   oidc_client_secret = var.vault_oidc_client_secret
   default_role       = "default"

@@ -7,7 +7,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`keycloak.armleth.fr`)
+    - match: Host(`auth.armleth.fr`)
       kind: Rule
       services:
         - name: keycloak

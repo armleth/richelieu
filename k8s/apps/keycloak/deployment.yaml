@@ -36,7 +36,7 @@ spec:
                   name: keycloak-db-secret
                   key: POSTGRES_PASSWORD
             - name: KC_HOSTNAME
-              value: https://keycloak.armleth.fr
+              value: https://auth.armleth.fr
             - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
               value: "true"
             - name: KC_PROXY_HEADERS
