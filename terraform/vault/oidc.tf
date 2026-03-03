@@ -14,6 +14,10 @@ resource "vault_jwt_auth_backend" "keycloak" {
   oidc_client_id     = "vault"
   oidc_client_secret = var.vault_oidc_client_secret
   default_role       = "default"
+
+  tune {
+    listing_visibility = "unauth"
+  }
 }
 
 resource "vault_jwt_auth_backend_role" "default" {
