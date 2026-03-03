@@ -3,3 +3,6 @@ kind: Kustomization
 
 resources:
   - cluster-issuer.yaml
+  - certificate-argocd.yaml
+  - certificate-vault.yaml
+  - certificate-bbox.yaml
