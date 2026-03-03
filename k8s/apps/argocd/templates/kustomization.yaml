@@ -7,3 +7,4 @@ resources:
   - external-secrets.yaml
   - external-secrets-config.yaml
   - vault-config.yaml
+  - bbox.yaml

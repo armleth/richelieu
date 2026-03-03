@@ -1,0 +1,16 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: bbox-ingress
+  namespace: bbox
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`bbox.armleth.fr`)
+      kind: Rule
+      services:
+        - name: bbox
+          port: 80
+  tls:
+    secretName: bbox-tls-secret
