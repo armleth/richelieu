@@ -1,12 +1,25 @@
-apiVersion: v1
-kind: Secret
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
 metadata:
   name: keycloak-db-secret
   namespace: keycloak
-stringData:
-  POSTGRES_DB: keycloak
-  POSTGRES_USER: keycloak
-  POSTGRES_PASSWORD: changeme-keycloak-db
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: keycloak-db-secret
+    template:
+      data:
+        POSTGRES_DB: keycloak
+        POSTGRES_USER: keycloak
+        POSTGRES_PASSWORD: "{{ .password }}"
+  data:
+    - secretKey: password
+      remoteRef:
+        key: secret/keycloak
+        property: db-password
 ---
 apiVersion: apps/v1
 kind: StatefulSet

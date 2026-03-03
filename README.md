@@ -38,7 +38,7 @@ k8s/
       certificates/                         # TLS certificates for all services
     bbox/                                   # Nginx reverse proxy to 192.168.1.254
     keycloak/
-      postgres.yaml                         # PostgreSQL 16 StatefulSet + Service
+      postgres.yaml                         # PostgreSQL 16 StatefulSet + Service + DB secret (ExternalSecret)
       deployment.yaml                       # Keycloak 26.1 (quay.io/keycloak/keycloak)
       service.yaml                          # Keycloak Service
       admin-secret.yaml                     # Keycloak admin credentials (ExternalSecret from Vault)
@@ -46,7 +46,7 @@ k8s/
       certificate.yaml                      # TLS certificate for auth.armleth.fr
       external-secret-argocd-oidc.yaml      # OIDC client secret for ArgoCD (from Vault)
 terraform/
-  vault/                                    # KV v2, K8s auth, ESO role, OIDC auth
+  vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
   keycloak/                                 # Realm, OIDC clients, groups, token mappers
 ```
 
@@ -86,7 +86,7 @@ kubectl exec -n vault vault-0 -- vault operator unseal "$UNSEAL_KEY"
 
 **Save `vault-init.json` securely.** Vault must be unsealed after every pod restart.
 
-### 5. Configure Vault with Terraform and store Keycloak admin password
+### 5. Configure Vault and store Keycloak secrets
 
 ```bash
 kubectl port-forward -n vault svc/vault 8200:8200 &
@@ -99,9 +99,11 @@ terraform init
 terraform apply
 cd ../..
 
-# Generate and store Keycloak admin password in Vault
+# Generate and store Keycloak passwords in Vault
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
-  vault kv put secret/keycloak admin-password="$(openssl rand -base64 24)"
+  vault kv put secret/keycloak \
+    admin-password="$(openssl rand -base64 24)" \
+    db-password="$(openssl rand -base64 24)"
 ```
 
 ### 6. Verify ESO
@@ -155,8 +157,6 @@ Log in to `https://auth.armleth.fr` with user `admin` and the password from step
 You can then log into ArgoCD and Vault via the **Keycloak** SSO option.
 
 ## Adding a TLS certificate
-
-To add a certificate for a new subdomain:
 
 1. Create `k8s/apps/cert-manager-config/certificates/<app>.yaml`:
 
