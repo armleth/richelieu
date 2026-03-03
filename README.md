@@ -97,6 +97,7 @@ export VAULT_TOKEN=$(jq -r '.root_token' vault-init.json)
 cd terraform/vault
 terraform init
 terraform apply
+cd ../..
 ```
 
 ### 6. Verify ESO
@@ -121,17 +122,24 @@ export KEYCLOAK_PASSWORD=$(kubectl get secret -n keycloak keycloak-admin-secret 
 cd terraform/keycloak
 terraform init
 terraform apply
+cd ../..
 ```
 
 ### 8. Store OIDC secrets and enable Vault OIDC
 
+Ensure port-forwards from steps 5 and 7 are still running.
+
 ```bash
+export VAULT_ADDR=http://127.0.0.1:8200
+export VAULT_TOKEN=$(jq -r '.root_token' vault-init.json)
+
 ARGOCD_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw argocd_client_secret)
-kubectl exec -n vault vault-0 -- vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"
 
 VAULT_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw vault_client_secret)
 cd terraform/vault
 terraform apply -var="vault_oidc_client_secret=$VAULT_CLIENT_SECRET"
+cd ../..
 ```
 
 ### 9. Create your Keycloak user
