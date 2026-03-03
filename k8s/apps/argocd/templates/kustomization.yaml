@@ -10,3 +10,5 @@ resources:
   - bbox.yaml
   - cert-manager.yaml
   - cert-manager-config.yaml
+  - keycloak.yaml
+  - keycloak-config.yaml

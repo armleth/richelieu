@@ -8,8 +8,9 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **ArgoCD v3.3.2** (self-managed via app-of-apps pattern)
 - **HashiCorp Vault** (secrets backend)
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
-- **Terraform** (Vault configuration as code)
+- **Terraform** (Vault and Keycloak configuration as code)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
+- **Keycloak** (centralized OIDC authentication for ArgoCD and Vault)
 
 ## Repository structure
 
@@ -38,18 +39,25 @@ k8s/
       vault-auth-sa.yaml                    # ServiceAccount for Vault K8s auth
     cert-manager-config/
       cluster-issuer.yaml                   # Let's Encrypt ClusterIssuer (HTTP-01)
-      certificates/
-        argocd.yaml                         # Certificate for argocd.armleth.fr
-        vault.yaml                          # Certificate for vault.armleth.fr
-        bbox.yaml                           # Certificate for bbox.armleth.fr
+      certificates/                         # TLS certificates for all services
+    keycloak-config/
+      ingress.yaml                          # Traefik IngressRoute for keycloak.armleth.fr
+      external-secret-argocd-oidc.yaml      # OIDC client secret for ArgoCD
 terraform/
   vault/
     main.tf                                 # Vault provider
     versions.tf                             # Required providers
     secrets.tf                              # KV v2 engine
     auth.tf                                 # Kubernetes auth backend
-    policies.tf                             # ESO read-only policy
+    policies.tf                             # ESO + admin policies
     roles.tf                                # ESO K8s auth role
+    oidc.tf                                 # Vault OIDC auth via Keycloak
+  keycloak/
+    main.tf                                 # Keycloak provider
+    versions.tf                             # Required providers
+    realm.tf                                # infrastructure realm
+    clients.tf                              # ArgoCD + Vault OIDC clients
+    groups.tf                               # admins group + token mappers
 ```
 
 ## Bootstrap
@@ -115,13 +123,52 @@ This declaratively configures:
 - `external-secrets` policy (read-only access to `secret/*`)
 - `external-secrets` role (bound to ESO ServiceAccount)
 
-### 6. Verify
+### 6. Verify ESO
 
 ```bash
 kubectl get clustersecretstore vault-backend
 ```
 
 Status should show `Valid`.
+
+### 7. Configure Keycloak
+
+ArgoCD deploys Keycloak automatically. Wait for the pod, then configure via Terraform:
+
+```bash
+kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=keycloak -n keycloak --timeout=600s
+
+kubectl port-forward -n keycloak svc/keycloak 8080:80 &
+
+export KEYCLOAK_URL=http://localhost:8080
+export KEYCLOAK_USER=admin
+export KEYCLOAK_PASSWORD=$(kubectl get secret -n keycloak keycloak -o jsonpath='{.data.admin-password}' | base64 -d)
+
+cd terraform/keycloak
+terraform init
+terraform apply
+```
+
+This creates the `infrastructure` realm, OIDC clients for ArgoCD and Vault, the `admins` group, and group membership token mappers.
+
+### 8. Store OIDC secrets and enable Vault OIDC
+
+```bash
+# Store ArgoCD OIDC client secret in Vault
+ARGOCD_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw argocd_client_secret)
+kubectl exec -n vault vault-0 -- vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"
+
+# Enable Vault OIDC auth
+VAULT_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw vault_client_secret)
+cd terraform/vault
+terraform apply -var="vault_oidc_client_secret=$VAULT_CLIENT_SECRET"
+```
+
+ArgoCD picks up the OIDC secret via ExternalSecrets automatically.
+
+### 9. Create your Keycloak user
+
+Log in to `https://keycloak.armleth.fr` with the admin credentials, switch to the `infrastructure` realm, create a user and add them to the `admins` group.
 
 ## Usage
 
@@ -202,4 +249,5 @@ This repository is the single source of truth. All changes go through git -- Arg
 The only manual operations are:
 - **Vault init** (one-time)
 - **Vault unseal** (after pod restarts)
-- **`terraform apply`** (when changing Vault configuration)
+- **`terraform apply`** (when changing Vault or Keycloak configuration)
+- **Keycloak user management** (via Keycloak admin UI or Terraform)

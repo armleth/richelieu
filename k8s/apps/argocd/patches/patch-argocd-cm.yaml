@@ -5,3 +5,13 @@ metadata:
 data:
   url: https://argocd.armleth.fr
   accounts.admin.enabled: "true"
+  oidc.config: |
+    name: Keycloak
+    issuer: https://keycloak.armleth.fr/realms/infrastructure
+    clientID: argocd
+    clientSecret: $argocd-oidc-secret:oidc.keycloak.clientSecret
+    requestedScopes:
+      - openid
+      - profile
+      - email
+      - groups

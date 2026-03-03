@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: oci://registry-1.docker.io/bitnamicharts
+    chart: keycloak
+    targetRevision: 24.4.2
+    helm:
+      values: |
+        production: true
+        proxy: edge
+        httpRelativePath: /
+        auth:
+          adminUser: admin
+        postgresql:
+          enabled: true
+          auth:
+            postgresPassword: ""
+            password: ""
+        service:
+          type: ClusterIP
+          ports:
+            http: 80
+        tls:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keycloak
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
