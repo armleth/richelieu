@@ -9,6 +9,7 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **HashiCorp Vault** (secrets backend)
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
 - **Terraform** (Vault configuration as code)
+- **cert-manager** (automated TLS certificates via Let's Encrypt)
 
 ## Repository structure
 
@@ -35,6 +36,12 @@ k8s/
     external-secrets-config/
       cluster-secret-store.yaml             # ClusterSecretStore pointing to Vault
       vault-auth-sa.yaml                    # ServiceAccount for Vault K8s auth
+    cert-manager-config/
+      cluster-issuer.yaml                   # Let's Encrypt ClusterIssuer (HTTP-01)
+      certificates/
+        argocd.yaml                         # Certificate for argocd.armleth.fr
+        vault.yaml                          # Certificate for vault.armleth.fr
+        bbox.yaml                           # Certificate for bbox.armleth.fr
 terraform/
   vault/
     main.tf                                 # Vault provider
@@ -67,7 +74,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 
 Login at `https://argocd.armleth.fr` with user `admin`.
 
-> **Note:** The IngressRoutes expect TLS secrets (`argocd-tls-secret` in `argocd`, `vault-tls-secret` in `vault`). Provide these separately or via ExternalSecrets once Vault is configured.
+> **Note:** TLS certificates are managed automatically by cert-manager. See [Adding a TLS certificate](#adding-a-tls-certificate) below.
 
 ### 4. Initialize and unseal Vault
 
@@ -147,6 +154,46 @@ spec:
 ```
 
 Commit and push -- ArgoCD syncs it automatically.
+
+## Adding a TLS certificate
+
+cert-manager automatically issues and renews Let's Encrypt certificates via HTTP-01 challenges. Port 80 must be reachable from the internet.
+
+To add a certificate for a new subdomain:
+
+1. Create `k8s/apps/cert-manager-config/certificates/<app>.yaml`:
+
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: <app>-tls
+  namespace: <app-namespace>
+spec:
+  secretName: <app>-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - <app>.armleth.fr
+```
+
+2. Add it to `k8s/apps/cert-manager-config/kustomization.yaml`:
+
+```yaml
+resources:
+  - cluster-issuer.yaml
+  - certificates/<app>.yaml
+```
+
+3. Reference the secret in your IngressRoute:
+
+```yaml
+tls:
+  secretName: <app>-tls-secret
+```
+
+4. Commit and push -- cert-manager issues the certificate automatically.
 
 ## Post-bootstrap
 
