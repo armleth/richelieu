@@ -41,7 +41,7 @@ k8s/
       postgres.yaml                         # PostgreSQL 16 StatefulSet + Service
       deployment.yaml                       # Keycloak 26.1 (quay.io/keycloak/keycloak)
       service.yaml                          # Keycloak Service
-      admin-secret.yaml                     # Keycloak admin credentials
+      admin-secret.yaml                     # Keycloak admin credentials (ExternalSecret from Vault)
       ingress.yaml                          # IngressRoute for auth.armleth.fr
       certificate.yaml                      # TLS certificate for auth.armleth.fr
       external-secret-argocd-oidc.yaml      # OIDC client secret for ArgoCD (from Vault)
@@ -86,7 +86,7 @@ kubectl exec -n vault vault-0 -- vault operator unseal "$UNSEAL_KEY"
 
 **Save `vault-init.json` securely.** Vault must be unsealed after every pod restart.
 
-### 5. Configure Vault with Terraform
+### 5. Configure Vault with Terraform and store Keycloak admin password
 
 ```bash
 kubectl port-forward -n vault svc/vault 8200:8200 &
@@ -98,6 +98,10 @@ cd terraform/vault
 terraform init
 terraform apply
 cd ../..
+
+# Generate and store Keycloak admin password in Vault
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv put secret/keycloak admin-password="$(openssl rand -base64 24)"
 ```
 
 ### 6. Verify ESO
@@ -117,7 +121,8 @@ kubectl port-forward -n keycloak svc/keycloak 8080:80 &
 
 export KEYCLOAK_URL=http://localhost:8080
 export KEYCLOAK_USER=admin
-export KEYCLOAK_PASSWORD=$(kubectl get secret -n keycloak keycloak-admin-secret -o jsonpath='{.data.password}' | base64 -d)
+export KEYCLOAK_PASSWORD=$(kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv get -field=admin-password secret/keycloak)
 
 cd terraform/keycloak
 terraform init
@@ -134,8 +139,8 @@ export VAULT_ADDR=http://127.0.0.1:8200
 export VAULT_TOKEN=$(jq -r '.root_token' vault-init.json)
 
 ARGOCD_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw argocd_client_secret)
-kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"
-cd ../..
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"
 
 VAULT_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw vault_client_secret)
 cd terraform/vault
@@ -145,7 +150,9 @@ cd ../..
 
 ### 9. Create your Keycloak user
 
-Log in to `https://auth.armleth.fr`, switch to the `infrastructure` realm, create a user and add them to the `admins` group.
+Log in to `https://auth.armleth.fr` with user `admin` and the password from step 5. Switch to the `infrastructure` realm, create a user and add them to the `admins` group.
+
+You can then log into ArgoCD and Vault via the **Keycloak** SSO option.
 
 ## Adding a TLS certificate
 
