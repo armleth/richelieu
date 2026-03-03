@@ -8,3 +8,5 @@ resources:
   - external-secrets-config.yaml
   - vault-config.yaml
   - bbox.yaml
+  - cert-manager.yaml
+  - cert-manager-config.yaml

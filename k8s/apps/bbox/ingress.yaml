@@ -13,4 +13,5 @@ spec:
       services:
         - name: bbox-proxy-service
           port: 80
-  tls: {}
+  tls:
+    secretName: bbox-tls-secret
