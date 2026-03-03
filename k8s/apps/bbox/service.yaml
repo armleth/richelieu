@@ -1,26 +1,13 @@
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: bbox
+  name: bbox-proxy-service
   namespace: bbox
 spec:
+  selector:
+    app: bbox-proxy
   ports:
-    - port: 80
+    - protocol: TCP
+      port: 80
       targetPort: 80
-      protocol: TCP
-  clusterIP: None
----
-apiVersion: discovery.k8s.io/v1
-kind: EndpointSlice
-metadata:
-  name: bbox
-  namespace: bbox
-  labels:
-    kubernetes.io/service-name: bbox
-addressType: IPv4
-ports:
-  - port: 80
-    protocol: TCP
-endpoints:
-  - addresses:
-      - 192.168.1.254

@@ -1,3 +1,4 @@
+---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -10,6 +11,6 @@ spec:
     - match: Host(`bbox.armleth.fr`)
       kind: Rule
       services:
-        - name: bbox
+        - name: bbox-proxy-service
           port: 80
   tls: {}
