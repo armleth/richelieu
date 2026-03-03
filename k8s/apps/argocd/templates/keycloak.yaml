@@ -16,15 +16,12 @@ spec:
     helm:
       values: |
         production: true
-        proxy: edge
+        proxyHeaders: xforwarded
         httpRelativePath: /
         auth:
           adminUser: admin
         postgresql:
           enabled: true
-          auth:
-            postgresPassword: ""
-            password: ""
         service:
           type: ClusterIP
           ports:
