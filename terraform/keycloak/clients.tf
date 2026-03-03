@@ -4,9 +4,10 @@ resource "keycloak_openid_client" "argocd" {
   name      = "ArgoCD"
   enabled   = true
 
-  access_type              = "CONFIDENTIAL"
-  standard_flow_enabled    = true
+  access_type                  = "CONFIDENTIAL"
+  standard_flow_enabled        = true
   direct_access_grants_enabled = false
+  pkce_code_challenge_method   = "S256"
 
   root_url = "https://argocd.armleth.fr"
   valid_redirect_uris = [

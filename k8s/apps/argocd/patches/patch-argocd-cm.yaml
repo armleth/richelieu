@@ -10,6 +10,7 @@ data:
     issuer: https://auth.armleth.fr/realms/infrastructure
     clientID: argocd
     clientSecret: $argocd-oidc-secret:oidc.keycloak.clientSecret
+    enablePKCE: true
     requestedScopes:
       - openid
       - profile
