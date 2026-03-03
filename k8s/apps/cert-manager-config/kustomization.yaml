@@ -6,4 +6,3 @@ resources:
   - certificates/argocd.yaml
   - certificates/vault.yaml
   - certificates/bbox.yaml
-  - certificates/keycloak.yaml
