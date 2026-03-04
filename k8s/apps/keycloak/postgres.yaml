@@ -11,60 +11,32 @@ spec:
   target:
     name: keycloak-db-secret
     template:
+      type: kubernetes.io/basic-auth
       data:
-        POSTGRES_DB: keycloak
-        POSTGRES_USER: keycloak
-        POSTGRES_PASSWORD: "{{ .password }}"
+        username: keycloak
+        password: "{{ .password }}"
   data:
     - secretKey: password
       remoteRef:
         key: secret/keycloak
         property: db-password
 ---
-apiVersion: apps/v1
-kind: StatefulSet
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
 metadata:
-  name: keycloak-postgres
+  name: keycloak-pg
   namespace: keycloak
 spec:
-  serviceName: keycloak-postgres
-  replicas: 1
-  selector:
-    matchLabels:
-      app: keycloak-postgres
-  template:
-    metadata:
-      labels:
-        app: keycloak-postgres
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:16-alpine
-          ports:
-            - containerPort: 5432
-          envFrom:
-            - secretRef:
-                name: keycloak-db-secret
-          volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 1Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: keycloak-postgres
-  namespace: keycloak
-spec:
-  selector:
-    app: keycloak-postgres
-  ports:
-    - port: 5432
-      targetPort: 5432
+  instances: 1
+  bootstrap:
+    initdb:
+      database: keycloak
+      owner: keycloak
+      secret:
+        name: keycloak-db-secret
+  storage:
+    size: 2Gi
+  postgresql:
+    parameters:
+      shared_buffers: "128MB"
+      max_connections: "100"

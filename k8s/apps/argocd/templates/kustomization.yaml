@@ -10,4 +10,5 @@ resources:
   - bbox.yaml
   - cert-manager.yaml
   - cert-manager-config.yaml
+  - cloudnative-pg.yaml
   - keycloak.yaml
