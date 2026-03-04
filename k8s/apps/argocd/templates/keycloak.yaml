@@ -16,6 +16,11 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: keycloak
+  ignoreDifferences:
+    - group: postgresql.cnpg.io
+      kind: Cluster
+      jsonPointers:
+        - /spec
   syncPolicy:
     automated:
       prune: true
@@ -23,3 +28,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
