@@ -8,6 +8,7 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **ArgoCD v3.3.2** (self-managed via app-of-apps pattern)
 - **HashiCorp Vault** (secrets backend)
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
+- **CloudNativePG** (PostgreSQL operator -- manages Keycloak's database)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
 - **Keycloak** (centralized OIDC authentication for ArgoCD and Vault)
 - **Terraform** (Vault and Keycloak configuration as code)
@@ -38,7 +39,7 @@ k8s/
       certificates/                         # TLS certificates for all services
     bbox/                                   # Nginx reverse proxy to 192.168.1.254
     keycloak/
-      postgres.yaml                         # PostgreSQL 16 StatefulSet + Service + DB secret (ExternalSecret)
+      postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
       deployment.yaml                       # Keycloak 26.1 (quay.io/keycloak/keycloak)
       service.yaml                          # Keycloak Service
       admin-secret.yaml                     # Keycloak admin credentials (ExternalSecret from Vault)
@@ -47,7 +48,7 @@ k8s/
       external-secret-argocd-oidc.yaml      # OIDC client secret for ArgoCD (from Vault)
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
-  keycloak/                                 # Realm, OIDC clients, groups, token mappers
+  keycloak/                                 # Realm, OIDC clients, groups, master admin group
 ```
 
 ## Bootstrap
@@ -152,7 +153,10 @@ cd ../..
 
 ### 9. Create your Keycloak user
 
-Log in to `https://auth.armleth.fr` with user `admin` and the password from step 5. Switch to the `infrastructure` realm, create a user and add them to the `admins` group.
+Log in to `https://auth.armleth.fr` with user `admin` and the password from step 5.
+
+- In the **master** realm, create a user and add them to the `admin` group (grants full Keycloak admin privileges).
+- Switch to the **infrastructure** realm, create the same user and add them to the `admins` group.
 
 You can then log into ArgoCD and Vault via the **Keycloak** SSO option.
 
