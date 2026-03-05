@@ -12,3 +12,4 @@ resources:
   - cert-manager-config.yaml
   - cloudnative-pg.yaml
   - keycloak.yaml
+  - jellyfin.yaml

@@ -70,3 +70,27 @@ output "bbox_client_secret" {
   value     = keycloak_openid_client.bbox.client_secret
   sensitive = true
 }
+
+resource "keycloak_openid_client" "jellyfin" {
+  realm_id  = keycloak_realm.infrastructure.id
+  client_id = "jellyfin"
+  name      = "Jellyfin"
+  enabled   = true
+
+  access_type              = "CONFIDENTIAL"
+  standard_flow_enabled    = true
+  direct_access_grants_enabled = false
+
+  root_url = "https://jellyfin.armleth.fr"
+  valid_redirect_uris = [
+    "https://jellyfin.armleth.fr/*",
+  ]
+  web_origins = [
+    "https://jellyfin.armleth.fr",
+  ]
+}
+
+output "jellyfin_client_secret" {
+  value     = keycloak_openid_client.jellyfin.client_secret
+  sensitive = true
+}

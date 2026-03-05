@@ -6,3 +6,4 @@ resources:
   - certificates/argocd.yaml
   - certificates/vault.yaml
   - certificates/bbox.yaml
+  - certificates/jellyfin.yaml
