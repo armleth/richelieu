@@ -1,0 +1,57 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bbox-oauth2-proxy
+  namespace: bbox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bbox-oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: bbox-oauth2-proxy
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
+          args:
+            - --provider=oidc
+            - --oidc-issuer-url=https://auth.armleth.fr/realms/infrastructure
+            - --client-id=bbox
+            - --redirect-url=https://bbox.armleth.fr/oauth2/callback
+            - --email-domain=*
+            - --http-address=0.0.0.0:4180
+            - --reverse-proxy=true
+            - --set-xauthrequest=true
+            - --skip-provider-button=true
+            - --cookie-secure=true
+            - --upstream=static://202
+          env:
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bbox-oidc-secret
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bbox-oidc-secret
+                  key: cookie-secret
+          ports:
+            - containerPort: 4180
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 10
+            periodSeconds: 30

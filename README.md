@@ -151,6 +151,13 @@ VAULT_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw vault_clien
 cd terraform/vault
 terraform apply -var="vault_oidc_client_secret=$VAULT_CLIENT_SECRET"
 cd ../..
+
+BBOX_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw bbox_client_secret)
+COOKIE_SECRET=$(openssl rand -base64 32 | head -c 32)
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv put secret/bbox \
+    oidc-client-secret="$BBOX_CLIENT_SECRET" \
+    cookie-secret="$COOKIE_SECRET"
 ```
 
 ### 9. Create your Keycloak user

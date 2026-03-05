@@ -46,3 +46,27 @@ output "vault_client_secret" {
   value     = keycloak_openid_client.vault.client_secret
   sensitive = true
 }
+
+resource "keycloak_openid_client" "bbox" {
+  realm_id  = keycloak_realm.infrastructure.id
+  client_id = "bbox"
+  name      = "Bbox"
+  enabled   = true
+
+  access_type              = "CONFIDENTIAL"
+  standard_flow_enabled    = true
+  direct_access_grants_enabled = false
+
+  root_url = "https://bbox.armleth.fr"
+  valid_redirect_uris = [
+    "https://bbox.armleth.fr/oauth2/callback",
+  ]
+  web_origins = [
+    "https://bbox.armleth.fr",
+  ]
+}
+
+output "bbox_client_secret" {
+  value     = keycloak_openid_client.bbox.client_secret
+  sensitive = true
+}

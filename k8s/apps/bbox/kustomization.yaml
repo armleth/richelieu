@@ -9,3 +9,7 @@ resources:
   - deployment.yaml
   - ingress.yaml
   - service.yaml
+  - external-secret.yaml
+  - oauth2-proxy-deployment.yaml
+  - oauth2-proxy-service.yaml
+  - middleware.yaml
