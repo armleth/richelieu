@@ -12,7 +12,8 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
 - **CloudNativePG** (PostgreSQL operator -- manages Keycloak's database)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
-- **Keycloak** (centralized OIDC authentication for ArgoCD and Vault)
+- **Keycloak** (centralized OIDC authentication for ArgoCD, Vault and Bbox)
+- **Jellyfin** (media server with OIDC SSO via jellyfin-plugin-sso)
 - **Terraform** (Vault and Keycloak configuration as code)
 
 ## Repository structure
@@ -39,7 +40,8 @@ k8s/
     cert-manager-config/
       cluster-issuer.yaml                   # Let's Encrypt ClusterIssuer (HTTP-01)
       certificates/                         # TLS certificates for all services
-    bbox/                                   # Nginx reverse proxy to 192.168.1.254
+    bbox/                                   # Nginx reverse proxy to 192.168.1.254 (OIDC-protected)
+    media/                                  # Jellyfin media server (jellyfin.armleth.fr)
     keycloak/
       postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
       deployment.yaml                       # Keycloak 26.1 (quay.io/keycloak/keycloak)
@@ -50,7 +52,7 @@ k8s/
       external-secret-argocd-oidc.yaml      # OIDC client secret for ArgoCD (from Vault)
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
-  keycloak/                                 # Realm, OIDC clients, groups, master admin group
+  keycloak/                                 # Realm, OIDC clients (argocd, vault, bbox, jellyfin), groups, master admin group
 ```
 
 ## Bootstrap
@@ -168,6 +170,25 @@ Log in to `https://auth.armleth.fr` with user `admin` and the password from step
 - Switch to the **infrastructure** realm, create the same user and add them to the `admins` group.
 
 You can then log into ArgoCD and Vault via the **Keycloak** SSO option.
+
+### 10. Configure Jellyfin SSO
+
+After Jellyfin is running at `https://jellyfin.armleth.fr`:
+
+1. Complete the initial setup wizard.
+2. Go to **Admin Dashboard > Plugins > Repositories** and add:
+   ```
+   https://raw.githubusercontent.com/9p4/jellyfin-plugin-sso/manifest-release/manifest.json
+   ```
+3. Install **SSO-Auth** from the Catalog tab and restart Jellyfin.
+4. Configure the SSO plugin with:
+   - **OIDC endpoint:** `https://auth.armleth.fr/realms/infrastructure`
+   - **Client ID:** `jellyfin`
+   - **Client secret:**
+     ```bash
+     cd terraform/keycloak && terraform output -raw jellyfin_client_secret
+     ```
+5. Optionally add an SSO button via **General > Branding > Login Disclaimer** HTML.
 
 ## Adding a TLS certificate
 
