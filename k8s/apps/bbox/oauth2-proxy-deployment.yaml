@@ -25,10 +25,9 @@ spec:
             - --email-domain=*
             - --http-address=0.0.0.0:4180
             - --reverse-proxy=true
-            - --set-xauthrequest=true
             - --skip-provider-button=true
             - --cookie-secure=true
-            - --upstream=static://202
+            - --upstream=http://bbox-proxy-service.bbox.svc.cluster.local:80
           env:
             - name: OAUTH2_PROXY_CLIENT_SECRET
               valueFrom:

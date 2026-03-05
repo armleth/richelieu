@@ -8,18 +8,10 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`bbox.armleth.fr`) && PathPrefix(`/oauth2/`)
+    - match: Host(`bbox.armleth.fr`)
       kind: Rule
       services:
         - name: bbox-oauth2-proxy-service
           port: 4180
-    - match: Host(`bbox.armleth.fr`)
-      kind: Rule
-      middlewares:
-        - name: bbox-oauth2-proxy
-        - name: bbox-oauth2-errors
-      services:
-        - name: bbox-proxy-service
-          port: 80
   tls:
     secretName: bbox-tls-secret
