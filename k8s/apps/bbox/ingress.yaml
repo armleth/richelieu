@@ -17,6 +17,7 @@ spec:
       kind: Rule
       middlewares:
         - name: bbox-oauth2-proxy
+        - name: bbox-oauth2-errors
       services:
         - name: bbox-proxy-service
           port: 80
