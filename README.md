@@ -2,6 +2,8 @@
 
 GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and all applications declaratively from this repository.
 
+**⚠️ Before contributing or making changes, read [CONTRIBUTING.md](./CONTRIBUTING.md) for coding standards and guidelines.**
+
 ## Stack
 
 - **K3s** with Traefik ingress controller
