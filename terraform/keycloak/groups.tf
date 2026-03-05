@@ -3,6 +3,11 @@ resource "keycloak_group" "admins" {
   name     = "admins"
 }
 
+resource "keycloak_group" "bbox" {
+  realm_id = keycloak_realm.infrastructure.id
+  name     = "bbox"
+}
+
 # Client scope so that clients can request "groups" as an OIDC scope
 resource "keycloak_openid_client_scope" "groups" {
   realm_id               = keycloak_realm.infrastructure.id

@@ -26,6 +26,7 @@ spec:
             - --http-address=0.0.0.0:4180
             - --reverse-proxy=true
             - --skip-provider-button=true
+            - --allowed-group=bbox
             - --cookie-secure=true
             - --upstream=http://bbox-proxy-service.bbox.svc.cluster.local:80
           env:
