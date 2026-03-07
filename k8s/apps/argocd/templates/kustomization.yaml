@@ -13,3 +13,4 @@ resources:
   - cloudnative-pg.yaml
   - keycloak.yaml
   - jellyfin.yaml
+  - nextcloud.yaml

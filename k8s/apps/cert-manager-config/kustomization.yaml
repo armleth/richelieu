@@ -7,3 +7,4 @@ resources:
   - certificates/vault.yaml
   - certificates/bbox.yaml
   - certificates/jellyfin.yaml
+  - certificates/nextcloud.yaml

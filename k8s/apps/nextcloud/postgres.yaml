@@ -1,0 +1,42 @@
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: nextcloud-db-secret
+  namespace: nextcloud
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: nextcloud-db-secret
+    template:
+      data:
+        username: nextcloud
+        password: "{{ .password }}"
+  data:
+    - secretKey: password
+      remoteRef:
+        key: secret/nextcloud
+        property: db-password
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: nextcloud-pg
+  namespace: nextcloud
+spec:
+  instances: 1
+  bootstrap:
+    initdb:
+      database: nextcloud
+      owner: nextcloud
+      secret:
+        name: nextcloud-db-secret
+  storage:
+    size: 5Gi
+  postgresql:
+    parameters:
+      shared_buffers: "128MB"
+      max_connections: "100"

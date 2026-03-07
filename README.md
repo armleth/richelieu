@@ -10,10 +10,11 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **ArgoCD v3.3.2** (self-managed via app-of-apps pattern)
 - **HashiCorp Vault** (secrets backend)
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
-- **CloudNativePG** (PostgreSQL operator -- manages Keycloak's database)
+- **CloudNativePG** (PostgreSQL operator -- manages Keycloak's and Nextcloud's databases)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
 - **Keycloak** (centralized OIDC authentication for ArgoCD, Vault and Bbox)
 - **Jellyfin** (media server with OIDC SSO via jellyfin-plugin-sso)
+- **Nextcloud** (file sync & sharing with Redis caching and PostgreSQL backend)
 - **Terraform** (Vault and Keycloak configuration as code)
 
 ## Repository structure
@@ -42,6 +43,14 @@ k8s/
       certificates/                         # TLS certificates for all services
     bbox/                                   # Nginx reverse proxy to 192.168.1.254 (OIDC-protected)
     media/                                  # Jellyfin media server (jellyfin.armleth.fr)
+    nextcloud/
+      pvc.yaml                              # 100Gi PVC for Nextcloud data
+      postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
+      redis.yaml                            # Redis Deployment + Service for caching
+      external-secret.yaml                  # Admin credentials (ExternalSecret from Vault)
+      deployment.yaml                       # Nextcloud (nextcloud:latest)
+      service.yaml                          # Nextcloud Service
+      ingress.yaml                          # IngressRoute for nextcloud.armleth.fr
     keycloak/
       postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
       deployment.yaml                       # Keycloak 26.1 (quay.io/keycloak/keycloak)
@@ -137,7 +146,7 @@ terraform apply
 cd ../..
 ```
 
-### 8. Store OIDC secrets and enable Vault OIDC
+### 8. Store OIDC secrets, Nextcloud secrets, and enable Vault OIDC
 
 Ensure port-forwards from steps 5 and 7 are still running.
 
@@ -160,6 +169,12 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv put secret/bbox \
     oidc-client-secret="$BBOX_CLIENT_SECRET" \
     cookie-secret="$COOKIE_SECRET"
+
+# Store Nextcloud secrets
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv put secret/nextcloud \
+    admin-password="$(openssl rand -base64 24)" \
+    db-password="$(openssl rand -base64 24)"
 ```
 
 ### 9. Create your Keycloak user
@@ -189,6 +204,22 @@ After Jellyfin is running at `https://jellyfin.armleth.fr`:
      cd terraform/keycloak && terraform output -raw jellyfin_client_secret
      ```
 5. Optionally add an SSO button via **General > Branding > Login Disclaimer** HTML.
+
+### 11. Configure Nextcloud OIDC
+
+After Nextcloud is running at `https://nextcloud.armleth.fr`:
+
+1. Complete the initial setup (admin account is auto-created from Vault secrets).
+2. Create a `nextcloud` OIDC client in Keycloak (realm `infrastructure`) and store its secret in Vault:
+   ```bash
+   kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+     vault kv patch secret/nextcloud oidc-client-secret="<secret>"
+   ```
+3. In Nextcloud, go to **Apps** and install **OpenID Connect user backend**.
+4. Configure the OIDC provider under **Administration > OpenID Connect**:
+   - **Discovery endpoint:** `https://auth.armleth.fr/realms/infrastructure/.well-known/openid-configuration`
+   - **Client ID:** `nextcloud`
+   - **Client secret:** the value stored in Vault
 
 ## Adding a TLS certificate
 
