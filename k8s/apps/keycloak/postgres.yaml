@@ -35,7 +35,21 @@ spec:
         name: keycloak-db-secret
   storage:
     size: 2Gi
+  resources:
+    requests:
+      memory: 96Mi
+      cpu: 50m
+    limits:
+      memory: 192Mi
   postgresql:
     parameters:
-      shared_buffers: "128MB"
-      max_connections: "100"
+      shared_buffers: "64MB"
+      max_connections: "20"
+      max_parallel_workers: "2"
+      max_worker_processes: "4"
+      max_parallel_workers_per_gather: "1"
+      max_parallel_maintenance_workers: "1"
+      work_mem: "4MB"
+      maintenance_work_mem: "32MB"
+      effective_cache_size: "128MB"
+      wal_keep_size: "64MB"

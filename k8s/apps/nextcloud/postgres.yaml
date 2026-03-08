@@ -36,7 +36,21 @@ spec:
         name: nextcloud-db-secret
   storage:
     size: 5Gi
+  resources:
+    requests:
+      memory: 96Mi
+      cpu: 50m
+    limits:
+      memory: 256Mi
   postgresql:
     parameters:
-      shared_buffers: "128MB"
-      max_connections: "100"
+      shared_buffers: "64MB"
+      max_connections: "30"
+      max_parallel_workers: "2"
+      max_worker_processes: "4"
+      max_parallel_workers_per_gather: "1"
+      max_parallel_maintenance_workers: "1"
+      work_mem: "4MB"
+      maintenance_work_mem: "32MB"
+      effective_cache_size: "128MB"
+      wal_keep_size: "64MB"

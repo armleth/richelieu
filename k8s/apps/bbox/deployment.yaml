@@ -17,6 +17,12 @@ spec:
       containers:
       - name: nginx
         image: nginx:latest
+        resources:
+          requests:
+            memory: 8Mi
+            cpu: 5m
+          limits:
+            memory: 32Mi
         volumeMounts:
         - name: config
           mountPath: /etc/nginx/conf.d

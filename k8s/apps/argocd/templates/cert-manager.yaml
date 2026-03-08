@@ -17,6 +17,35 @@ spec:
       values: |
         crds:
           enabled: true
+        cainjector:
+          extraArgs:
+            - --namespace=cert-manager
+            - --enable-certificates-data-source=false
+          extraEnv:
+            - name: MALLOC_ARENA_MAX
+              value: "2"
+          resources:
+            requests:
+              memory: 16Mi
+            limits:
+              memory: 48Mi
+        extraEnv:
+          - name: MALLOC_ARENA_MAX
+            value: "2"
+        resources:
+          requests:
+            memory: 24Mi
+          limits:
+            memory: 48Mi
+        webhook:
+          extraEnv:
+            - name: MALLOC_ARENA_MAX
+              value: "2"
+          resources:
+            requests:
+              memory: 16Mi
+            limits:
+              memory: 32Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager

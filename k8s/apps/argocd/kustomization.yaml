@@ -13,3 +13,5 @@ patches:
   - path: patches/patch-argocd-cm.yaml
   - path: patches/patch-argocd-cmd-params-cm.yaml
   - path: patches/patch-argocd-rbac-cm.yaml
+  - path: patches/patch-disable-dex.yaml
+  - path: patches/patch-argocd-resources.yaml

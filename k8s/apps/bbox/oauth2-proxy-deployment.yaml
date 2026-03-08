@@ -41,6 +41,12 @@ spec:
                 secretKeyRef:
                   name: bbox-oidc-secret
                   key: cookie-secret
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 5m
+            limits:
+              memory: 32Mi
           ports:
             - containerPort: 4180
               name: http

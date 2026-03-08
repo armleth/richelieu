@@ -50,6 +50,12 @@ spec:
               value: https
             - name: TRUSTED_PROXIES
               value: 10.0.0.0/8
+          resources:
+            requests:
+              memory: 192Mi
+              cpu: 50m
+            limits:
+              memory: 384Mi
           volumeMounts:
             - name: data
               mountPath: /var/www/html

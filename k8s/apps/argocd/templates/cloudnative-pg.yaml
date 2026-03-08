@@ -11,6 +11,17 @@ spec:
     repoURL: https://cloudnative-pg.github.io/charts
     chart: cloudnative-pg
     targetRevision: 0.27.1
+    helm:
+      values: |
+        additionalEnv:
+          - name: MALLOC_ARENA_MAX
+            value: "2"
+        resources:
+          requests:
+            memory: 24Mi
+            cpu: 10m
+          limits:
+            memory: 64Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: cnpg-system
