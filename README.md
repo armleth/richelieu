@@ -1,4 +1,4 @@
-# richelieu
+# Richelieu
 
 GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and all applications declaratively from this repository.
 
