@@ -59,6 +59,8 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/www/html
+            - name: jellyfin-media
+              mountPath: /media
           readinessProbe:
             httpGet:
               path: /status.php
@@ -81,3 +83,7 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: nextcloud-data
+        - name: jellyfin-media
+          hostPath:
+            path: /data/media
+            type: DirectoryOrCreate
