@@ -25,12 +25,14 @@ spec:
               memory: 512Mi
               cpu: 100m
             limits:
-              memory: 4Gi
+              memory: 2Gi
           volumeMounts:
             - name: config
               mountPath: /config
             - name: media
               mountPath: /media
+            - name: dri
+              mountPath: /dev/dri
           readinessProbe:
             httpGet:
               path: /health
@@ -50,3 +52,6 @@ spec:
         - name: media
           persistentVolumeClaim:
             claimName: jellyfin-media
+        - name: dri
+          hostPath:
+            path: /dev/dri
