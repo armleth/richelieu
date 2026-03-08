@@ -53,7 +53,7 @@ spec:
                   name: keycloak-admin-secret
                   key: password
             - name: JAVA_OPTS_KC_HEAP
-              value: "-XX:MaxRAMPercentage=65 -XX:InitialRAMPercentage=50 -XX:MaxHeapFreeRatio=30"
+              value: "-XX:MaxRAMPercentage=65 -XX:InitialRAMPercentage=50 -XX:MinHeapFreeRatio=15 -XX:MaxHeapFreeRatio=30"
           resources:
             requests:
               memory: 384Mi
