@@ -251,6 +251,19 @@ In **Dashboard > Playback > Transcoding**:
 
 AV1 and HEVC RExt are not supported by the current Intel iGPU.
 
+### Adding media via Nextcloud
+
+Jellyfin and Nextcloud share a `/data/media` hostPath volume. To upload films through Nextcloud's web UI:
+
+1. In Nextcloud, go to **Apps** and enable **External storage support**.
+2. Go to **Administration Settings > External storage**.
+3. Add a new storage:
+   - **Folder name**: `Media`
+   - **External storage**: Local
+   - **Configuration**: `/media`
+   - **Available for**: All users (or restrict as needed)
+4. The `Media` folder now appears in Nextcloud's file browser. Any file uploaded there is immediately visible to Jellyfin at `/media`.
+
 ## Post-bootstrap
 
 This repository is the single source of truth. All changes go through git -- ArgoCD syncs automatically with pruning and self-healing enabled.

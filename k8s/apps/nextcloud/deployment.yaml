@@ -14,6 +14,13 @@ spec:
       labels:
         app: nextcloud
     spec:
+      initContainers:
+        - name: fix-media-permissions
+          image: busybox
+          command: ["sh", "-c", "chown 33:33 /media"]
+          volumeMounts:
+            - name: jellyfin-media
+              mountPath: /media
       containers:
         - name: nextcloud
           image: nextcloud:latest
