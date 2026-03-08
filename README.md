@@ -1,4 +1,4 @@
-# richelieu_try
+# richelieu
 
 GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and all applications declaratively from this repository.
 
@@ -146,7 +146,7 @@ terraform apply
 cd ../..
 ```
 
-### 8. Store OIDC secrets, Nextcloud secrets, and enable Vault OIDC
+### 8. Store OIDC secrets and enable Vault OIDC
 
 Ensure port-forwards from steps 5 and 7 are still running.
 
@@ -170,7 +170,7 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
     oidc-client-secret="$BBOX_CLIENT_SECRET" \
     cookie-secret="$COOKIE_SECRET"
 
-# Store Nextcloud secrets
+# Store Nextcloud secrets (admin + database passwords)
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv put secret/nextcloud \
     admin-password="$(openssl rand -base64 24)" \
@@ -204,22 +204,6 @@ After Jellyfin is running at `https://jellyfin.armleth.fr`:
      cd terraform/keycloak && terraform output -raw jellyfin_client_secret
      ```
 5. Optionally add an SSO button via **General > Branding > Login Disclaimer** HTML.
-
-### 11. Configure Nextcloud OIDC
-
-After Nextcloud is running at `https://nextcloud.armleth.fr`:
-
-1. Complete the initial setup (admin account is auto-created from Vault secrets).
-2. Create a `nextcloud` OIDC client in Keycloak (realm `infrastructure`) and store its secret in Vault:
-   ```bash
-   kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
-     vault kv patch secret/nextcloud oidc-client-secret="<secret>"
-   ```
-3. In Nextcloud, go to **Apps** and install **OpenID Connect user backend**.
-4. Configure the OIDC provider under **Administration > OpenID Connect**:
-   - **Discovery endpoint:** `https://auth.armleth.fr/realms/infrastructure/.well-known/openid-configuration`
-   - **Client ID:** `nextcloud`
-   - **Client secret:** the value stored in Vault
 
 ## Adding a TLS certificate
 
