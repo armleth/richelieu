@@ -209,6 +209,48 @@ spec:
 3. Reference `secretName: <app>-tls-secret` in your IngressRoute's `tls` block.
 4. Commit and push.
 
+## Jellyfin hardware acceleration
+
+Jellyfin is configured with Intel Quick Sync Video (QSV) hardware transcoding via `/dev/dri` passthrough from the host.
+
+### Verify hardware acceleration
+
+From the host, check that the DRI device is visible and usable inside the pod:
+
+```bash
+# Confirm /dev/dri is mounted
+kubectl exec -n media deploy/jellyfin -- ls -la /dev/dri/
+
+# Check VA-API driver loads correctly
+kubectl exec -n media deploy/jellyfin -- \
+  /usr/lib/jellyfin-ffmpeg/vainfo --display drm --device /dev/dri/renderD128
+```
+
+`vainfo` should report `Intel iHD driver` and list supported profiles.
+
+### Jellyfin transcoding settings
+
+In **Dashboard > Playback > Transcoding**:
+
+- **Hardware acceleration**: Intel Quick Sync Video (QSV)
+- **Enable hardware decoding for**:
+
+| Codec | Enable |
+|---|---|
+| H264 | Yes |
+| HEVC | Yes |
+| MPEG2 | Yes |
+| VC1 | Yes |
+| VP8 | Yes |
+| VP9 | Yes |
+| HEVC 10bit | Yes |
+| VP9 10bit | Yes |
+| AV1 | No |
+| HEVC RExt 8/10bit | No |
+| HEVC RExt 12bit | No |
+
+AV1 and HEVC RExt are not supported by the current Intel iGPU.
+
 ## Post-bootstrap
 
 This repository is the single source of truth. All changes go through git -- ArgoCD syncs automatically with pruning and self-healing enabled.
