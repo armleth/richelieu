@@ -8,10 +8,10 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`jellyfin.armleth.fr`)
+    - match: Host(`media.armleth.fr`)
       kind: Rule
       services:
         - name: jellyfin-service
           port: 8096
   tls:
-    secretName: jellyfin-tls-secret
+    secretName: media-tls-secret

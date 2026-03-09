@@ -44,7 +44,7 @@ k8s/
     bbox/                                   # Nginx reverse proxy to 192.168.1.254 (OIDC-protected)
     media/                                  # Media stack (all services in namespace: media)
       downloads-pvc.yaml                    # Shared 100Gi PVC for torrent downloads
-      jellyfin/                             # Media server (jellyfin.armleth.fr)
+      jellyfin/                             # Media server (media.armleth.fr)
       radarr/                               # Movie manager (movies.media.armleth.fr)
       sonarr/                               # TV show manager (series.media.armleth.fr)
       jackett/                              # Torrent indexer (trackers.media.armleth.fr)
@@ -223,7 +223,7 @@ All media services run in the `media` namespace, managed by a single ArgoCD Appl
 
 | Service | URL | Purpose |
 |---|---|---|
-| Jellyfin | `jellyfin.armleth.fr` | Media streaming frontend |
+| Jellyfin | `media.armleth.fr` | Media streaming frontend |
 | Radarr | `movies.media.armleth.fr` | Movie search & organization |
 | Sonarr | `series.media.armleth.fr` | TV show search & organization |
 | Jackett | `trackers.media.armleth.fr` | Torrent indexer aggregator |

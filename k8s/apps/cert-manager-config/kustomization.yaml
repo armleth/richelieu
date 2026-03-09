@@ -6,7 +6,7 @@ resources:
   - certificates/argocd.yaml
   - certificates/vault.yaml
   - certificates/bbox.yaml
-  - certificates/jellyfin.yaml
+  - certificates/media.yaml
   - certificates/nextcloud.yaml
   - certificates/radarr.yaml
   - certificates/sonarr.yaml
