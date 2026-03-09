@@ -252,6 +252,33 @@ sudo mkdir -p /data/media/movies /data/media/tv
 sudo chown 1000:1000 /data/media/movies /data/media/tv
 ```
 
+Alternatively, if you cannot access the host directly, create the directories from within a running pod:
+
+```bash
+kubectl exec -n media deploy/radarr -- mkdir -p /media/movies /media/tv
+kubectl exec -n media deploy/radarr -- chown 1000:1000 /media/movies /media/tv
+```
+
+### DNS Configuration
+
+Jackett requires DNS resolution for external torrent indexer sites (1337x.to, thepiratebay.org, etc.). Some ISP DNS servers block these domains.
+
+CoreDNS must be configured to use public DNS servers that don't block torrent sites:
+
+```bash
+kubectl patch configmap coredns -n kube-system --type merge -p '{"data":{"Corefile":".:53 {\n    errors\n    health\n    ready\n    kubernetes cluster.local in-addr.arpa ip6.arpa {\n      pods insecure\n      fallthrough in-addr.arpa ip6.arpa\n    }\n    hosts /etc/coredns/NodeHosts {\n      ttl 60\n      reload 15s\n      fallthrough\n    }\n    prometheus :9153\n    forward . 1.1.1.1 8.8.8.8\n    cache 30\n    loop\n    reload\n    loadbalance\n    import /etc/coredns/custom/*.override\n}\nimport /etc/coredns/custom/*.server\n"}}'
+
+kubectl rollout restart deployment coredns -n kube-system
+```
+
+This configures CoreDNS to forward queries to Cloudflare (1.1.1.1) and Google DNS (8.8.8.8).
+
+Verify DNS resolution works:
+
+```bash
+kubectl exec -n media deploy/jackett -- nslookup 1337x.to
+```
+
 ### Shared volumes
 
 - **`media-downloads`** (100Gi PVC): shared by qBittorrent, Radarr, Sonarr, Flood, and Jellyfin at `/downloads`
@@ -273,9 +300,15 @@ After pods are running, configure the services through their web UIs:
    - Same download client (qBittorrent at `qbittorrent-service:8080`)
    - Root Folder: `/media/tv`
 
-4. **Flood**: On first login, connect to qBittorrent at `qbittorrent-service:8080`.
+4. **qBittorrent**:
+   - Settings > BitTorrent > Share Ratio Limiting
+   - If you want to disable seeding, check "When ratio reaches" and set to `0`
+   - Set action to "Stop torrent"
+   - Click "Save" at the bottom
 
-5. **Jellyfin**: Add library paths for `/media/movies` and `/media/tv`.
+5. **Flood**: On first login, connect to qBittorrent at `qbittorrent-service:8080`.
+
+6. **Jellyfin**: Add library paths for `/media/movies` and `/media/tv`.
 
 ### Data flow
 
