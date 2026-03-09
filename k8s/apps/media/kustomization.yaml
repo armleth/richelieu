@@ -5,7 +5,11 @@ kind: Kustomization
 namespace: media
 
 resources:
-  - pvc.yaml
-  - deployment.yaml
-  - service.yaml
-  - ingress.yaml
+  - downloads-pvc.yaml
+  - jellyfin/
+  - radarr/
+  - sonarr/
+  - jackett/
+  - flaresolverr/
+  - qbittorrent/
+  - flood/

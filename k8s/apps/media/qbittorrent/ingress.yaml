@@ -1,0 +1,17 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: qbittorrent-ingress
+  namespace: media
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`torrents.media.armleth.fr`)
+      kind: Rule
+      services:
+        - name: qbittorrent-service
+          port: 8080
+  tls:
+    secretName: qbittorrent-tls-secret

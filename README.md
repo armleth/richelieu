@@ -13,7 +13,7 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **CloudNativePG** (PostgreSQL operator -- manages Keycloak's and Nextcloud's databases)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
 - **Keycloak** (centralized OIDC authentication for ArgoCD, Vault and Bbox)
-- **Jellyfin** (media server)
+- **Media stack** (Jellyfin, Radarr, Sonarr, Jackett, FlareSolverr, qBittorrent, Flood)
 - **Nextcloud** (file sync & sharing with Redis caching and PostgreSQL backend)
 - **Terraform** (Vault and Keycloak configuration as code)
 
@@ -42,7 +42,15 @@ k8s/
       cluster-issuer.yaml                   # Let's Encrypt ClusterIssuer (HTTP-01)
       certificates/                         # TLS certificates for all services
     bbox/                                   # Nginx reverse proxy to 192.168.1.254 (OIDC-protected)
-    media/                                  # Jellyfin media server (jellyfin.armleth.fr)
+    media/                                  # Media stack (all services in namespace: media)
+      downloads-pvc.yaml                    # Shared 100Gi PVC for torrent downloads
+      jellyfin/                             # Media server (jellyfin.armleth.fr)
+      radarr/                               # Movie manager (movies.media.armleth.fr)
+      sonarr/                               # TV show manager (series.media.armleth.fr)
+      jackett/                              # Torrent indexer (trackers.media.armleth.fr)
+      flaresolverr/                         # Cloudflare bypass (internal only)
+      qbittorrent/                          # Torrent client (torrents.media.armleth.fr)
+      flood/                                # Torrent UI (downloads.media.armleth.fr)
     nextcloud/
       pvc.yaml                              # 100Gi PVC for Nextcloud data
       postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
@@ -208,6 +216,77 @@ spec:
 2. Add it to `k8s/apps/cert-manager-config/kustomization.yaml`.
 3. Reference `secretName: <app>-tls-secret` in your IngressRoute's `tls` block.
 4. Commit and push.
+
+## Media stack
+
+All media services run in the `media` namespace, managed by a single ArgoCD Application.
+
+| Service | URL | Purpose |
+|---|---|---|
+| Jellyfin | `jellyfin.armleth.fr` | Media streaming frontend |
+| Radarr | `movies.media.armleth.fr` | Movie search & organization |
+| Sonarr | `series.media.armleth.fr` | TV show search & organization |
+| Jackett | `trackers.media.armleth.fr` | Torrent indexer aggregator |
+| FlareSolverr | internal only | Cloudflare bypass for Jackett |
+| qBittorrent | `torrents.media.armleth.fr` | Torrent download client |
+| Flood | `downloads.media.armleth.fr` | Modern torrent UI for qBittorrent |
+
+### DNS records
+
+All media subdomains must have A/CNAME records pointing to the server:
+
+```
+movies.media.armleth.fr
+series.media.armleth.fr
+trackers.media.armleth.fr
+torrents.media.armleth.fr
+downloads.media.armleth.fr
+```
+
+### Host setup
+
+Create the media directories and set ownership to UID/GID 1000 (used by linuxserver.io containers):
+
+```bash
+sudo mkdir -p /data/media/movies /data/media/tv
+sudo chown 1000:1000 /data/media/movies /data/media/tv
+```
+
+### Shared volumes
+
+- **`media-downloads`** (100Gi PVC): shared by qBittorrent, Radarr, Sonarr, Flood, and Jellyfin at `/downloads`
+- **`/data/media`** (hostPath): shared by Jellyfin, Radarr, and Sonarr at `/media` -- organized media library
+
+### Service wiring (post-deploy)
+
+After pods are running, configure the services through their web UIs:
+
+1. **Jackett**: Settings > set FlareSolverr API URL to `http://flaresolverr-service:8191`, then add torrent indexers.
+
+2. **Radarr**:
+   - Settings > Indexers > Add Torznab indexers from Jackett (replace host with `jackett-service:9117`)
+   - Settings > Download Clients > Add qBittorrent: host `qbittorrent-service`, port `8080`
+   - Settings > Media Management > Root Folders: `/media/movies`
+
+3. **Sonarr**:
+   - Same indexer setup as Radarr (use `jackett-service:9117`)
+   - Same download client (qBittorrent at `qbittorrent-service:8080`)
+   - Root Folder: `/media/tv`
+
+4. **Flood**: On first login, connect to qBittorrent at `qbittorrent-service:8080`.
+
+5. **Jellyfin**: Add library paths for `/media/movies` and `/media/tv`.
+
+### Data flow
+
+```
+User adds movie/show in Radarr/Sonarr
+  -> Radarr/Sonarr searches Jackett (which uses FlareSolverr for Cloudflare-protected sites)
+  -> Radarr/Sonarr sends torrent to qBittorrent
+  -> qBittorrent downloads to /downloads (shared PVC)
+  -> Radarr/Sonarr hard-links completed files to /media/movies or /media/tv
+  -> Jellyfin serves the media
+```
 
 ## Jellyfin hardware acceleration
 

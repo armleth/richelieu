@@ -1,0 +1,17 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jackett-ingress
+  namespace: media
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`trackers.media.armleth.fr`)
+      kind: Rule
+      services:
+        - name: jackett-service
+          port: 9117
+  tls:
+    secretName: jackett-tls-secret

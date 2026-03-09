@@ -1,0 +1,17 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sonarr-ingress
+  namespace: media
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`series.media.armleth.fr`)
+      kind: Rule
+      services:
+        - name: sonarr-service
+          port: 8989
+  tls:
+    secretName: sonarr-tls-secret

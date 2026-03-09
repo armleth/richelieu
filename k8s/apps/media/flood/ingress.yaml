@@ -1,0 +1,17 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: flood-ingress
+  namespace: media
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`downloads.media.armleth.fr`)
+      kind: Rule
+      services:
+        - name: flood-service
+          port: 3000
+  tls:
+    secretName: flood-tls-secret
