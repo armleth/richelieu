@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: flood
-          image: jesec/flood:4.8.2
+          image: jesec/flood:4.13.0
           args:
             - --allowedpath
             - /downloads

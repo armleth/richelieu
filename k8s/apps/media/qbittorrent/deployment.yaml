@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: qbittorrent
-          image: linuxserver/qbittorrent:5.0.0
+          image: linuxserver/qbittorrent:5.1.4
           env:
             - name: PUID
               value: "1000"
