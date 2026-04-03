@@ -15,7 +15,7 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **Keycloak** (centralized OIDC authentication for ArgoCD, Vault and Bbox)
 - **Media stack** (Jellyfin, Radarr, Sonarr, Prowlarr, FlareSolverr, qBittorrent, Flood)
 - **Nextcloud** (file sync & sharing with Redis caching and PostgreSQL backend)
-- **Homepage** (dashboard with per-service resource monitoring -- homepage.armleth.fr)
+- **Homepage** (dashboard with per-service resource monitoring -- home.armleth.fr)
 - **Terraform** (Vault and Keycloak configuration as code)
 
 ## Repository structure
@@ -52,12 +52,12 @@ k8s/
       flaresolverr/                         # Cloudflare bypass (internal only)
       qbittorrent/                          # Torrent client (torrents.media.armleth.fr)
       flood/                                # Torrent UI (downloads.media.armleth.fr)
-    homepage/                               # Dashboard (homepage.armleth.fr)
+    homepage/                               # Dashboard (home.armleth.fr)
       rbac.yaml                             # ServiceAccount + ClusterRole + ClusterRoleBinding
       configmap.yaml                        # Homepage YAML configuration files
       deployment.yaml                       # Homepage (ghcr.io/gethomepage/homepage)
       service.yaml                          # Homepage Service
-      ingress.yaml                          # IngressRoute for homepage.armleth.fr
+      ingress.yaml                          # IngressRoute for home.armleth.fr
     nextcloud/
       pvc.yaml                              # 100Gi PVC for Nextcloud data
       postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
@@ -333,7 +333,7 @@ User adds movie/show in Radarr/Sonarr
 
 ## Homepage
 
-Homepage is a lightweight dashboard at `https://homepage.armleth.fr` showing all services grouped by category (Media, Infrastructure). It uses the Kubernetes metrics API via an in-cluster ServiceAccount to display per-pod CPU and memory usage for each service, along with cluster-wide resource totals and host disk usage.
+Homepage is a lightweight dashboard at `https://home.armleth.fr` showing all services grouped by category (Media, Infrastructure). It uses the Kubernetes metrics API via an in-cluster ServiceAccount to display per-pod CPU and memory usage for each service, along with cluster-wide resource totals and host disk usage.
 
 **Prerequisite**: `metrics-server` must be running in the cluster (pre-installed with K3s). Verify with `kubectl top nodes`.
 
