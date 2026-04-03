@@ -59,3 +59,14 @@ resource "keycloak_openid_client_default_scopes" "bbox" {
     keycloak_openid_client_scope.groups.name,
   ]
 }
+
+resource "keycloak_openid_client_default_scopes" "homepage" {
+  realm_id  = keycloak_realm.infrastructure.id
+  client_id = keycloak_openid_client.homepage.id
+  default_scopes = [
+    "openid",
+    "profile",
+    "email",
+    keycloak_openid_client_scope.groups.name,
+  ]
+}

@@ -70,3 +70,27 @@ output "bbox_client_secret" {
   value     = keycloak_openid_client.bbox.client_secret
   sensitive = true
 }
+
+resource "keycloak_openid_client" "homepage" {
+  realm_id  = keycloak_realm.infrastructure.id
+  client_id = "homepage"
+  name      = "Homepage"
+  enabled   = true
+
+  access_type              = "CONFIDENTIAL"
+  standard_flow_enabled    = true
+  direct_access_grants_enabled = false
+
+  root_url = "https://home.armleth.fr"
+  valid_redirect_uris = [
+    "https://home.armleth.fr/oauth2/callback",
+  ]
+  web_origins = [
+    "https://home.armleth.fr",
+  ]
+}
+
+output "homepage_client_secret" {
+  value     = keycloak_openid_client.homepage.client_secret
+  sensitive = true
+}

@@ -11,7 +11,7 @@ spec:
     - match: Host(`home.armleth.fr`)
       kind: Rule
       services:
-        - name: homepage-service
-          port: 3000
+        - name: homepage-oauth2-proxy-service
+          port: 4180
   tls:
     secretName: homepage-tls-secret
