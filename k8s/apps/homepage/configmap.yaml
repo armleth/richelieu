@@ -109,6 +109,13 @@ data:
             namespace: nextcloud
             app: nextcloud
             podSelector: "app=nextcloud"
+        - Homepage:
+            icon: homepage.png
+            href: https://home.armleth.fr
+            description: Dashboard
+            namespace: homepage
+            app: homepage
+            podSelector: "app=homepage"
         - Bbox:
             icon: router.png
             href: https://bbox.armleth.fr
