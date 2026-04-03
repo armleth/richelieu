@@ -12,10 +12,10 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
 - **CloudNativePG** (PostgreSQL operator -- manages Keycloak's and Nextcloud's databases)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
-- **Keycloak** (centralized OIDC authentication for ArgoCD, Vault and Bbox)
+- **Keycloak** (centralized OIDC authentication for ArgoCD, Vault, Bbox and Homepage)
 - **Media stack** (Jellyfin, Radarr, Sonarr, Prowlarr, FlareSolverr, qBittorrent, Flood)
 - **Nextcloud** (file sync & sharing with Redis caching and PostgreSQL backend)
-- **Homepage** (dashboard with per-service resource monitoring -- home.armleth.fr)
+- **Homepage** (OIDC-protected dashboard with per-service resource monitoring -- home.armleth.fr)
 - **Terraform** (Vault and Keycloak configuration as code)
 
 ## Repository structure
@@ -52,12 +52,15 @@ k8s/
       flaresolverr/                         # Cloudflare bypass (internal only)
       qbittorrent/                          # Torrent client (torrents.media.armleth.fr)
       flood/                                # Torrent UI (downloads.media.armleth.fr)
-    homepage/                               # Dashboard (home.armleth.fr)
+    homepage/                               # Dashboard (home.armleth.fr, OIDC-protected)
       rbac.yaml                             # ServiceAccount + ClusterRole + ClusterRoleBinding
       configmap.yaml                        # Homepage YAML configuration files
       deployment.yaml                       # Homepage (ghcr.io/gethomepage/homepage)
       service.yaml                          # Homepage Service
-      ingress.yaml                          # IngressRoute for home.armleth.fr
+      ingress.yaml                          # IngressRoute for home.armleth.fr (routes to oauth2-proxy)
+      external-secret.yaml                  # OIDC credentials (ExternalSecret from Vault)
+      oauth2-proxy-deployment.yaml          # OAuth2-proxy for Keycloak authentication
+      oauth2-proxy-service.yaml             # OAuth2-proxy Service
     nextcloud/
       pvc.yaml                              # 100Gi PVC for Nextcloud data
       postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
@@ -76,7 +79,7 @@ k8s/
       external-secret-argocd-oidc.yaml      # OIDC client secret for ArgoCD (from Vault)
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
-  keycloak/                                 # Realm, OIDC clients (argocd, vault, bbox), groups, master admin group
+  keycloak/                                 # Realm, OIDC clients (argocd, vault, bbox, homepage), groups, master admin group
 ```
 
 ## Bootstrap
@@ -185,6 +188,13 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
     oidc-client-secret="$BBOX_CLIENT_SECRET" \
     cookie-secret="$COOKIE_SECRET"
 
+HOMEPAGE_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw homepage_client_secret)
+COOKIE_SECRET=$(openssl rand -base64 32 | head -c 32)
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv put secret/homepage \
+    oidc-client-secret="$HOMEPAGE_CLIENT_SECRET" \
+    cookie-secret="$COOKIE_SECRET"
+
 # Store Nextcloud secrets (admin + database passwords)
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv put secret/nextcloud \
@@ -199,7 +209,7 @@ Log in to `https://auth.armleth.fr` with user `admin` and the password from step
 - In the **master** realm, create a user and add them to the `admin` group (grants full Keycloak admin privileges).
 - Switch to the **infrastructure** realm, create the same user and add them to the `admins` group.
 
-You can then log into ArgoCD and Vault via the **Keycloak** SSO option.
+You can then log into ArgoCD, Vault, Bbox, and Homepage via the **Keycloak** SSO option.
 
 ## Adding a TLS certificate
 
@@ -334,6 +344,8 @@ User adds movie/show in Radarr/Sonarr
 ## Homepage
 
 Homepage is a lightweight dashboard at `https://home.armleth.fr` showing all services grouped by category (Media, Infrastructure). It uses the Kubernetes metrics API via an in-cluster ServiceAccount to display per-pod CPU and memory usage for each service, along with cluster-wide resource totals and host disk usage.
+
+**Authentication**: Homepage is protected with OAuth2-proxy using Keycloak OIDC. Only users in the `admins` group can access the dashboard.
 
 **Prerequisite**: `metrics-server` must be running in the cluster (pre-installed with K3s). Verify with `kubectl top nodes`.
 
