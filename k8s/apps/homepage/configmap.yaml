@@ -35,9 +35,10 @@ data:
         - Jellyfin:
             icon: jellyfin.png
             href: https://media.armleth.fr
-            description: Media streaming
+            description: Media server
             namespace: media
             podSelector: "app=jellyfin"
+            showStats: true
         - Radarr:
             icon: radarr.png
             href: https://movies.media.armleth.fr
