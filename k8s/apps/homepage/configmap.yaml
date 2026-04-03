@@ -10,7 +10,6 @@ data:
 
   settings.yaml: |
     title: Richelieu
-    favicon: https://gethomepage.dev/favicon.ico
     theme: dark
     color: slate
 
