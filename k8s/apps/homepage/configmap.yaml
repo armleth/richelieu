@@ -118,4 +118,6 @@ data:
             namespace: bbox
             app: bbox
 
+  docker.yaml: |
+
   bookmarks.yaml: |

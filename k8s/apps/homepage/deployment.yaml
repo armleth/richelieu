@@ -17,15 +17,6 @@ spec:
         app: homepage
     spec:
       serviceAccountName: homepage
-      initContainers:
-        - name: copy-config
-          image: busybox
-          command: ['sh', '-c', 'cp -r /config-source/* /config/']
-          volumeMounts:
-            - name: config-source
-              mountPath: /config-source
-            - name: config
-              mountPath: /config
       containers:
         - name: homepage
           image: ghcr.io/gethomepage/homepage:v1.12.3
@@ -43,7 +34,25 @@ spec:
               memory: 256Mi
           volumeMounts:
             - name: config
-              mountPath: /app/config
+              mountPath: /app/config/kubernetes.yaml
+              subPath: kubernetes.yaml
+            - name: config
+              mountPath: /app/config/settings.yaml
+              subPath: settings.yaml
+            - name: config
+              mountPath: /app/config/widgets.yaml
+              subPath: widgets.yaml
+            - name: config
+              mountPath: /app/config/services.yaml
+              subPath: services.yaml
+            - name: config
+              mountPath: /app/config/docker.yaml
+              subPath: docker.yaml
+            - name: config
+              mountPath: /app/config/bookmarks.yaml
+              subPath: bookmarks.yaml
+            - name: logs
+              mountPath: /app/config/logs
             - name: host-root
               mountPath: /host-root
               readOnly: true
@@ -66,10 +75,10 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 30
       volumes:
-        - name: config-source
+        - name: config
           configMap:
             name: homepage-config
-        - name: config
+        - name: logs
           emptyDir: {}
         - name: host-root
           hostPath:
