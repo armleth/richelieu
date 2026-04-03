@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jackett
+  name: prowlarr
   namespace: media
 spec:
   replicas: 1
@@ -10,15 +10,15 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      app: jackett
+      app: prowlarr
   template:
     metadata:
       labels:
-        app: jackett
+        app: prowlarr
     spec:
       containers:
-        - name: jackett
-          image: linuxserver/jackett:0.24.1323
+        - name: prowlarr
+          image: linuxserver/prowlarr:2.3.0
           env:
             - name: PUID
               value: "1000"
@@ -26,31 +26,31 @@ spec:
               value: "1000"
             - name: TZ
               value: "Europe/Paris"
-            - name: AUTO_UPDATE
-              value: "true"
           ports:
-            - containerPort: 9117
+            - containerPort: 9696
               name: http
           resources:
             requests:
-              memory: 128Mi
+              memory: 256Mi
               cpu: 100m
             limits:
-              memory: 256Mi
+              memory: 512Mi
           volumeMounts:
             - name: config
               mountPath: /config
           readinessProbe:
-            tcpSocket:
-              port: 9117
+            httpGet:
+              path: /ping
+              port: 9696
             initialDelaySeconds: 15
             periodSeconds: 10
           livenessProbe:
-            tcpSocket:
-              port: 9117
+            httpGet:
+              path: /ping
+              port: 9696
             initialDelaySeconds: 30
             periodSeconds: 30
       volumes:
         - name: config
           persistentVolumeClaim:
-            claimName: jackett-config
+            claimName: prowlarr-config

@@ -9,7 +9,7 @@ resources:
   - jellyfin/
   - radarr/
   - sonarr/
-  - jackett/
+  - prowlarr/
   - flaresolverr/
   - qbittorrent/
   - flood/

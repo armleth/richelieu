@@ -10,6 +10,6 @@ resources:
   - certificates/nextcloud.yaml
   - certificates/radarr.yaml
   - certificates/sonarr.yaml
-  - certificates/jackett.yaml
+  - certificates/prowlarr.yaml
   - certificates/qbittorrent.yaml
   - certificates/flood.yaml

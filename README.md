@@ -13,7 +13,7 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **CloudNativePG** (PostgreSQL operator -- manages Keycloak's and Nextcloud's databases)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
 - **Keycloak** (centralized OIDC authentication for ArgoCD, Vault and Bbox)
-- **Media stack** (Jellyfin, Radarr, Sonarr, Jackett, FlareSolverr, qBittorrent, Flood)
+- **Media stack** (Jellyfin, Radarr, Sonarr, Prowlarr, FlareSolverr, qBittorrent, Flood)
 - **Nextcloud** (file sync & sharing with Redis caching and PostgreSQL backend)
 - **Terraform** (Vault and Keycloak configuration as code)
 
@@ -47,7 +47,7 @@ k8s/
       jellyfin/                             # Media server (media.armleth.fr)
       radarr/                               # Movie manager (movies.media.armleth.fr)
       sonarr/                               # TV show manager (series.media.armleth.fr)
-      jackett/                              # Torrent indexer (trackers.media.armleth.fr)
+      prowlarr/                             # Indexer manager (trackers.media.armleth.fr)
       flaresolverr/                         # Cloudflare bypass (internal only)
       qbittorrent/                          # Torrent client (torrents.media.armleth.fr)
       flood/                                # Torrent UI (downloads.media.armleth.fr)
@@ -226,8 +226,8 @@ All media services run in the `media` namespace, managed by a single ArgoCD Appl
 | Jellyfin | `media.armleth.fr` | Media streaming frontend |
 | Radarr | `movies.media.armleth.fr` | Movie search & organization |
 | Sonarr | `series.media.armleth.fr` | TV show search & organization |
-| Jackett | `trackers.media.armleth.fr` | Torrent indexer aggregator |
-| FlareSolverr | internal only | Cloudflare bypass for Jackett |
+| Prowlarr | `trackers.media.armleth.fr` | Indexer manager (syncs to Radarr/Sonarr) |
+| FlareSolverr | internal only | Cloudflare bypass for Prowlarr |
 | qBittorrent | `torrents.media.armleth.fr` | Torrent download client |
 | Flood | `downloads.media.armleth.fr` | Modern torrent UI for qBittorrent |
 
@@ -261,7 +261,7 @@ kubectl exec -n media deploy/radarr -- chown 1000:1000 /media/movies /media/tv
 
 ### DNS Configuration
 
-Jackett requires DNS resolution for external torrent indexer sites (1337x.to, thepiratebay.org, etc.). Some ISP DNS servers block these domains.
+Prowlarr requires DNS resolution for external torrent indexer sites (1337x.to, thepiratebay.org, etc.). Some ISP DNS servers block these domains.
 
 CoreDNS must be configured to use public DNS servers that don't block torrent sites:
 
@@ -276,7 +276,7 @@ This configures CoreDNS to forward queries to Cloudflare (1.1.1.1) and Google DN
 Verify DNS resolution works:
 
 ```bash
-kubectl exec -n media deploy/jackett -- nslookup 1337x.to
+kubectl exec -n media deploy/prowlarr -- nslookup 1337x.to
 ```
 
 ### Shared volumes
@@ -288,15 +288,18 @@ kubectl exec -n media deploy/jackett -- nslookup 1337x.to
 
 After pods are running, configure the services through their web UIs:
 
-1. **Jackett**: Settings > set FlareSolverr API URL to `http://flaresolverr-service:8191`, then add torrent indexers.
+1. **Prowlarr**:
+   - Settings > Indexers > Add FlareSolverr tag with URL `http://flaresolverr-service:8191`
+   - Indexers > Add torrent indexers
+   - Settings > Apps > Add Radarr and Sonarr (indexers auto-sync)
 
 2. **Radarr**:
-   - Settings > Indexers > Add Torznab indexers from Jackett (replace host with `jackett-service:9117`)
+   - Indexers are auto-synced from Prowlarr
    - Settings > Download Clients > Add qBittorrent: host `qbittorrent-service`, port `8080`
    - Settings > Media Management > Root Folders: `/media/movies`
 
 3. **Sonarr**:
-   - Same indexer setup as Radarr (use `jackett-service:9117`)
+   - Indexers are auto-synced from Prowlarr
    - Same download client (qBittorrent at `qbittorrent-service:8080`)
    - Root Folder: `/media/tv`
 
@@ -314,7 +317,7 @@ After pods are running, configure the services through their web UIs:
 
 ```
 User adds movie/show in Radarr/Sonarr
-  -> Radarr/Sonarr searches Jackett (which uses FlareSolverr for Cloudflare-protected sites)
+  -> Radarr/Sonarr searches via Prowlarr (which uses FlareSolverr for Cloudflare-protected sites)
   -> Radarr/Sonarr sends torrent to qBittorrent
   -> qBittorrent downloads to /downloads (shared PVC)
   -> Radarr/Sonarr hard-links completed files to /media/movies or /media/tv
