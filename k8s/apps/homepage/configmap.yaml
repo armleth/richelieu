@@ -83,7 +83,7 @@ data:
             podSelector: "app=flaresolverr"
     - Infrastructure:
         - ArgoCD:
-            icon: argocd.png
+            icon: argo-cd.png
             href: https://argocd.armleth.fr
             description: GitOps deployment
             server: kubernetes
