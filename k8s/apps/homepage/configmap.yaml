@@ -36,48 +36,41 @@ data:
             icon: jellyfin.png
             href: https://media.armleth.fr
             description: Media streaming
-            server: kubernetes
             namespace: media
             podSelector: "app=jellyfin"
         - Radarr:
             icon: radarr.png
             href: https://movies.media.armleth.fr
             description: Movie manager
-            server: kubernetes
             namespace: media
             podSelector: "app=radarr"
         - Sonarr:
             icon: sonarr.png
             href: https://series.media.armleth.fr
             description: TV show manager
-            server: kubernetes
             namespace: media
             podSelector: "app=sonarr"
         - Prowlarr:
             icon: prowlarr.png
             href: https://trackers.media.armleth.fr
             description: Indexer manager
-            server: kubernetes
             namespace: media
             podSelector: "app=prowlarr"
         - qBittorrent:
             icon: qbittorrent.png
             href: https://torrents.media.armleth.fr
             description: Torrent client
-            server: kubernetes
             namespace: media
             podSelector: "app=qbittorrent"
         - Flood:
             icon: flood.png
             href: https://downloads.media.armleth.fr
             description: Torrent UI
-            server: kubernetes
             namespace: media
             podSelector: "app=flood"
         - FlareSolverr:
             icon: flaresolverr.png
             description: Cloudflare bypass
-            server: kubernetes
             namespace: media
             podSelector: "app=flaresolverr"
     - Infrastructure:
@@ -85,35 +78,30 @@ data:
             icon: argo-cd.png
             href: https://argocd.armleth.fr
             description: GitOps deployment
-            server: kubernetes
             namespace: argocd
-            app: argocd-server
+            podSelector: "app.kubernetes.io/name=argocd-server"
         - Vault:
             icon: vault.png
             href: https://vault.armleth.fr
             description: Secrets management
-            server: kubernetes
             namespace: vault
-            app: vault
+            podSelector: "app.kubernetes.io/name=vault"
         - Keycloak:
             icon: keycloak.png
             href: https://auth.armleth.fr
             description: Identity provider
-            server: kubernetes
             namespace: keycloak
             podSelector: "app=keycloak"
         - Nextcloud:
             icon: nextcloud.png
             href: https://nextcloud.armleth.fr
             description: File sync & sharing
-            server: kubernetes
             namespace: nextcloud
             podSelector: "app=nextcloud"
         - Bbox:
             icon: router.png
             href: https://bbox.armleth.fr
             description: Router admin
-            server: kubernetes
             namespace: bbox
             podSelector: "app=bbox-proxy"
 
