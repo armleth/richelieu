@@ -1,0 +1,121 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-config
+  namespace: homepage
+data:
+  kubernetes.yaml: |
+    mode: cluster
+
+  settings.yaml: |
+    title: Richelieu
+    favicon: https://gethomepage.dev/favicon.ico
+    theme: dark
+    color: slate
+
+  widgets.yaml: |
+    - kubernetes:
+        cluster:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+          label: "cluster"
+        nodes:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+    - resources:
+        label: "Disk"
+        disk: /host-root
+
+  services.yaml: |
+    - Media:
+        - Jellyfin:
+            icon: jellyfin.png
+            href: https://media.armleth.fr
+            description: Media streaming
+            server: kubernetes
+            namespace: media
+            app: jellyfin
+        - Radarr:
+            icon: radarr.png
+            href: https://movies.media.armleth.fr
+            description: Movie manager
+            server: kubernetes
+            namespace: media
+            app: radarr
+        - Sonarr:
+            icon: sonarr.png
+            href: https://series.media.armleth.fr
+            description: TV show manager
+            server: kubernetes
+            namespace: media
+            app: sonarr
+        - Prowlarr:
+            icon: prowlarr.png
+            href: https://trackers.media.armleth.fr
+            description: Indexer manager
+            server: kubernetes
+            namespace: media
+            app: prowlarr
+        - qBittorrent:
+            icon: qbittorrent.png
+            href: https://torrents.media.armleth.fr
+            description: Torrent client
+            server: kubernetes
+            namespace: media
+            app: qbittorrent
+        - Flood:
+            icon: flood.png
+            href: https://downloads.media.armleth.fr
+            description: Torrent UI
+            server: kubernetes
+            namespace: media
+            app: flood
+        - FlareSolverr:
+            icon: flaresolverr.png
+            description: Cloudflare bypass
+            server: kubernetes
+            namespace: media
+            app: flaresolverr
+    - Infrastructure:
+        - ArgoCD:
+            icon: argocd.png
+            href: https://argocd.armleth.fr
+            description: GitOps deployment
+            server: kubernetes
+            namespace: argocd
+            app: argocd-server
+        - Vault:
+            icon: vault.png
+            href: https://vault.armleth.fr
+            description: Secrets management
+            server: kubernetes
+            namespace: vault
+            app: vault
+        - Keycloak:
+            icon: keycloak.png
+            href: https://auth.armleth.fr
+            description: Identity provider
+            server: kubernetes
+            namespace: keycloak
+            app: keycloak
+        - Nextcloud:
+            icon: nextcloud.png
+            href: https://nextcloud.armleth.fr
+            description: File sync & sharing
+            server: kubernetes
+            namespace: nextcloud
+            app: nextcloud
+        - Bbox:
+            icon: router.png
+            href: https://bbox.armleth.fr
+            description: Router admin
+            server: kubernetes
+            namespace: bbox
+            app: bbox
+
+  bookmarks.yaml: |

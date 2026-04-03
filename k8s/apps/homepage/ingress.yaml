@@ -1,0 +1,17 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: homepage-ingress
+  namespace: homepage
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`homepage.armleth.fr`)
+      kind: Rule
+      services:
+        - name: homepage-service
+          port: 3000
+  tls:
+    secretName: homepage-tls-secret

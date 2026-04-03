@@ -13,3 +13,4 @@ resources:
   - certificates/prowlarr.yaml
   - certificates/qbittorrent.yaml
   - certificates/flood.yaml
+  - certificates/homepage.yaml
