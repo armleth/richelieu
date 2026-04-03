@@ -35,6 +35,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /app/config
+            - name: logs
+              mountPath: /app/config/logs
             - name: host-root
               mountPath: /host-root
               readOnly: true
@@ -60,6 +62,8 @@ spec:
         - name: config
           configMap:
             name: homepage-config
+        - name: logs
+          emptyDir: {}
         - name: host-root
           hostPath:
             path: /
