@@ -149,12 +149,12 @@ Status should show `Valid`.
 ```bash
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" sh -c '
   vault kv put secret/authentik \
-    admin-password="$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)" \
-    secret-key="$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 60)" \
-    db-password="$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)"
+    admin-password="$(openssl rand -base64 24)" \
+    secret-key="$(openssl rand -base64 60)" \
+    db-password="$(openssl rand -base64 24)"
   vault kv put secret/nextcloud \
-    admin-password="$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)" \
-    db-password="$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)"
+    admin-password="$(openssl rand -base64 24)" \
+    db-password="$(openssl rand -base64 24)"
 '
 ```
 
