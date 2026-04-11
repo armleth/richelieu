@@ -25,6 +25,10 @@ spec:
             - --noauth
             - --qburl
             - http://qbittorrent-service:8080
+            - --qbuser
+            - admin
+            - --qbpass
+            - ""
           env:
             - name: HOME
               value: "/config"
