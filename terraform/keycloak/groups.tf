@@ -70,3 +70,14 @@ resource "keycloak_openid_client_default_scopes" "homepage" {
     keycloak_openid_client_scope.groups.name,
   ]
 }
+
+resource "keycloak_openid_client_default_scopes" "code_server" {
+  realm_id  = keycloak_realm.infrastructure.id
+  client_id = keycloak_openid_client.code_server.id
+  default_scopes = [
+    "openid",
+    "profile",
+    "email",
+    keycloak_openid_client_scope.groups.name,
+  ]
+}
