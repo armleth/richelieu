@@ -144,14 +144,18 @@ kubectl get clustersecretstore vault-backend
 
 Status should show `Valid`.
 
-### 7. Store Authentik secrets and deploy
+### 7. Store Authentik and Nextcloud secrets
 
 ```bash
-kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" sh -c '
   vault kv put secret/authentik \
-    admin-password="$(openssl rand -base64 24)" \
-    secret-key="$(openssl rand -base64 60)" \
-    db-password="$(openssl rand -base64 24)"
+    admin-password="$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)" \
+    secret-key="$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 60)" \
+    db-password="$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)"
+  vault kv put secret/nextcloud \
+    admin-password="$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)" \
+    db-password="$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)"
+'
 ```
 
 ### 8. Configure Authentik
@@ -159,40 +163,43 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
 ```bash
 kubectl wait --for=condition=Ready pods -l app=authentik-server -n authentik --timeout=600s
 
-kubectl port-forward -n authentik svc/authentik-server 9000:80 &
+# Generate a recovery link to access the admin UI
+kubectl exec -n authentik deployment/authentik-worker -- ak create_recovery_key 10 akadmin
 
-# Create API token in Authentik admin UI, then:
+# Open the recovery link in your browser, then create an API token:
+# Settings > Tokens and App passwords > Create (intent: API)
+
+kubectl port-forward -n authentik svc/authentik-server 9000:80 &
 export AUTHENTIK_URL=http://localhost:9000
 export AUTHENTIK_TOKEN=<api-token>
 
 cd terraform/authentik
 terraform init
 terraform apply
-cd ../..
 
 # Store OIDC client secrets in Vault
-export VAULT_ADDR=http://127.0.0.1:8200
-export VAULT_TOKEN=$(jq -r '.root_token' vault-init.json)
+ARGOCD_CLIENT_SECRET=$(terraform output -raw argocd_client_secret)
+VAULT_CLIENT_SECRET=$(terraform output -raw vault_client_secret)
+cd ../..
 
-ARGOCD_CLIENT_SECRET=$(cd terraform/authentik && terraform output -raw argocd_client_secret)
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"
 
-VAULT_CLIENT_SECRET=$(cd terraform/authentik && terraform output -raw vault_client_secret)
+# Verify the secret was stored correctly
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv get -field=oidc-client-secret secret/argocd
+
 cd terraform/vault
 terraform apply -var="vault_oidc_client_secret=$VAULT_CLIENT_SECRET"
 cd ../..
 
-# Store Nextcloud secrets (admin + database passwords)
-kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
-  vault kv put secret/nextcloud \
-    admin-password="$(openssl rand -base64 24)" \
-    db-password="$(openssl rand -base64 24)"
+# Restart ArgoCD server to pick up the new OIDC secret
+kubectl rollout restart deployment argocd-server -n argocd
 ```
 
 ### 9. Create your Authentik user
 
-Log in to `https://auth.armleth.fr` with akadmin and the generated password from step 7.
+Log in to `https://auth.armleth.fr` using a recovery link (see step 8).
 
 - Go to **Directory > Users** and create your user
 - Go to **Directory > Groups** and assign the user to the `admin` group
