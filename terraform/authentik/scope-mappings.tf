@@ -1,16 +1,16 @@
-data "authentik_scope_mapping" "openid" {
+data "authentik_property_mapping_provider_scope" "openid" {
   managed = "goauthentik.io/providers/oauth2/scope-openid"
 }
 
-data "authentik_scope_mapping" "profile" {
+data "authentik_property_mapping_provider_scope" "profile" {
   managed = "goauthentik.io/providers/oauth2/scope-profile"
 }
 
-data "authentik_scope_mapping" "email" {
+data "authentik_property_mapping_provider_scope" "email" {
   managed = "goauthentik.io/providers/oauth2/scope-email"
 }
 
-resource "authentik_scope_mapping" "groups" {
+resource "authentik_property_mapping_provider_scope" "groups" {
   name       = "groups"
   scope_name = "groups"
   expression = <<-EOF

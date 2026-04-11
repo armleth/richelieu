@@ -1,7 +1,3 @@
-data "authentik_flow" "default_invalidation" {
-  slug = "default-invalidation-flow"
-}
-
 # --- Homepage (any authenticated user) ---
 
 resource "authentik_provider_proxy" "homepage" {

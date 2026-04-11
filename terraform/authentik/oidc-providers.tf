@@ -6,6 +6,10 @@ data "authentik_flow" "default_authentication" {
   slug = "default-authentication-flow"
 }
 
+data "authentik_flow" "default_invalidation" {
+  slug = "default-invalidation-flow"
+}
+
 data "authentik_certificate_key_pair" "default" {
   name = "authentik Self-signed Certificate"
 }
@@ -15,18 +19,22 @@ data "authentik_certificate_key_pair" "default" {
 resource "authentik_provider_oauth2" "argocd" {
   name               = "ArgoCD"
   authorization_flow = data.authentik_flow.default_authorization.id
+  invalidation_flow  = data.authentik_flow.default_invalidation.id
   client_id          = "argocd"
   signing_key        = data.authentik_certificate_key_pair.default.id
 
-  redirect_uris = [
-    "https://argocd.${local.domain}/auth/callback",
+  allowed_redirect_uris = [
+    {
+      matching_mode = "strict"
+      url           = "https://argocd.${local.domain}/auth/callback"
+    },
   ]
 
   property_mappings = [
-    data.authentik_scope_mapping.openid.id,
-    data.authentik_scope_mapping.profile.id,
-    data.authentik_scope_mapping.email.id,
-    authentik_scope_mapping.groups.id,
+    data.authentik_property_mapping_provider_scope.openid.id,
+    data.authentik_property_mapping_provider_scope.profile.id,
+    data.authentik_property_mapping_provider_scope.email.id,
+    authentik_property_mapping_provider_scope.groups.id,
   ]
 }
 
@@ -52,19 +60,26 @@ output "argocd_client_secret" {
 resource "authentik_provider_oauth2" "vault" {
   name               = "Vault"
   authorization_flow = data.authentik_flow.default_authorization.id
+  invalidation_flow  = data.authentik_flow.default_invalidation.id
   client_id          = "vault"
   signing_key        = data.authentik_certificate_key_pair.default.id
 
-  redirect_uris = [
-    "https://vault.${local.domain}/ui/vault/auth/oidc/oidc/callback",
-    "http://localhost:8250/oidc/callback",
+  allowed_redirect_uris = [
+    {
+      matching_mode = "strict"
+      url           = "https://vault.${local.domain}/ui/vault/auth/oidc/oidc/callback"
+    },
+    {
+      matching_mode = "strict"
+      url           = "http://localhost:8250/oidc/callback"
+    },
   ]
 
   property_mappings = [
-    data.authentik_scope_mapping.openid.id,
-    data.authentik_scope_mapping.profile.id,
-    data.authentik_scope_mapping.email.id,
-    authentik_scope_mapping.groups.id,
+    data.authentik_property_mapping_provider_scope.openid.id,
+    data.authentik_property_mapping_provider_scope.profile.id,
+    data.authentik_property_mapping_provider_scope.email.id,
+    authentik_property_mapping_provider_scope.groups.id,
   ]
 }
 
