@@ -179,3 +179,19 @@ resource "authentik_policy_binding" "flood_admin" {
   group  = authentik_group.admin.id
   order  = 0
 }
+
+# --- Embedded Outpost (serves /outpost.goauthentik.io/auth/traefik) ---
+
+resource "authentik_outpost" "embedded" {
+  name = "authentik Embedded Outpost"
+  protocol_providers = [
+    authentik_provider_proxy.homepage.id,
+    authentik_provider_proxy.bbox.id,
+    authentik_provider_proxy.code_server.id,
+    authentik_provider_proxy.radarr.id,
+    authentik_provider_proxy.sonarr.id,
+    authentik_provider_proxy.prowlarr.id,
+    authentik_provider_proxy.qbittorrent.id,
+    authentik_provider_proxy.flood.id,
+  ]
+}

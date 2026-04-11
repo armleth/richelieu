@@ -32,6 +32,7 @@ resource "vault_jwt_auth_backend_role" "default" {
   bound_audiences = ["vault"]
   user_claim      = "sub"
   groups_claim    = "groups"
+  oidc_scopes     = ["openid", "profile", "email", "groups"]
   claim_mappings = {
     preferred_username = "username"
     email              = "email"
