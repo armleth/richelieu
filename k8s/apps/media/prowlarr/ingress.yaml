@@ -8,8 +8,16 @@ spec:
   entryPoints:
     - websecure
   routes:
+    - match: Host(`trackers.media.armleth.fr`) && PathPrefix(`/outpost.goauthentik.io/`)
+      kind: Rule
+      priority: 15
+      services:
+        - name: authentik-server
+          namespace: authentik
+          port: 80
     - match: Host(`trackers.media.armleth.fr`)
       kind: Rule
+      priority: 10
       services:
         - name: prowlarr-service
           port: 9696

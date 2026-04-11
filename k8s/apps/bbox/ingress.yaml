@@ -8,8 +8,16 @@ spec:
   entryPoints:
     - websecure
   routes:
+    - match: Host(`bbox.armleth.fr`) && PathPrefix(`/outpost.goauthentik.io/`)
+      kind: Rule
+      priority: 15
+      services:
+        - name: authentik-server
+          namespace: authentik
+          port: 80
     - match: Host(`bbox.armleth.fr`)
       kind: Rule
+      priority: 10
       services:
         - name: bbox-proxy-service
           port: 80

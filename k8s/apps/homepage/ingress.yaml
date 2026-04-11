@@ -8,8 +8,16 @@ spec:
   entryPoints:
     - websecure
   routes:
+    - match: Host(`home.armleth.fr`) && PathPrefix(`/outpost.goauthentik.io/`)
+      kind: Rule
+      priority: 15
+      services:
+        - name: authentik-server
+          namespace: authentik
+          port: 80
     - match: Host(`home.armleth.fr`)
       kind: Rule
+      priority: 10
       services:
         - name: homepage-service
           port: 3000

@@ -8,8 +8,16 @@ spec:
   entryPoints:
     - websecure
   routes:
+    - match: Host(`torrents.media.armleth.fr`) && PathPrefix(`/outpost.goauthentik.io/`)
+      kind: Rule
+      priority: 15
+      services:
+        - name: authentik-server
+          namespace: authentik
+          port: 80
     - match: Host(`torrents.media.armleth.fr`)
       kind: Rule
+      priority: 10
       services:
         - name: qbittorrent-service
           port: 8080
