@@ -70,7 +70,7 @@ resource "authentik_policy_binding" "code_server_dev" {
   order  = 1
 }
 
-# --- Radarr (admin only) ---
+# --- Radarr (admin + media groups) ---
 
 resource "authentik_provider_proxy" "radarr" {
   name               = "Radarr"
@@ -92,7 +92,13 @@ resource "authentik_policy_binding" "radarr_admin" {
   order  = 0
 }
 
-# --- Sonarr (admin only) ---
+resource "authentik_policy_binding" "radarr_media" {
+  target = authentik_application.radarr.uuid
+  group  = authentik_group.media.id
+  order  = 1
+}
+
+# --- Sonarr (admin + media groups) ---
 
 resource "authentik_provider_proxy" "sonarr" {
   name               = "Sonarr"
@@ -114,7 +120,13 @@ resource "authentik_policy_binding" "sonarr_admin" {
   order  = 0
 }
 
-# --- Prowlarr (admin only) ---
+resource "authentik_policy_binding" "sonarr_media" {
+  target = authentik_application.sonarr.uuid
+  group  = authentik_group.media.id
+  order  = 1
+}
+
+# --- Prowlarr (admin + media groups) ---
 
 resource "authentik_provider_proxy" "prowlarr" {
   name               = "Prowlarr"
@@ -136,7 +148,13 @@ resource "authentik_policy_binding" "prowlarr_admin" {
   order  = 0
 }
 
-# --- qBittorrent (admin only) ---
+resource "authentik_policy_binding" "prowlarr_media" {
+  target = authentik_application.prowlarr.uuid
+  group  = authentik_group.media.id
+  order  = 1
+}
+
+# --- qBittorrent (admin + media groups) ---
 
 resource "authentik_provider_proxy" "qbittorrent" {
   name               = "qBittorrent"
@@ -158,7 +176,13 @@ resource "authentik_policy_binding" "qbittorrent_admin" {
   order  = 0
 }
 
-# --- Flood (admin only) ---
+resource "authentik_policy_binding" "qbittorrent_media" {
+  target = authentik_application.qbittorrent.uuid
+  group  = authentik_group.media.id
+  order  = 1
+}
+
+# --- Flood (admin + media groups) ---
 
 resource "authentik_provider_proxy" "flood" {
   name               = "Flood"
@@ -178,6 +202,12 @@ resource "authentik_policy_binding" "flood_admin" {
   target = authentik_application.flood.uuid
   group  = authentik_group.admin.id
   order  = 0
+}
+
+resource "authentik_policy_binding" "flood_media" {
+  target = authentik_application.flood.uuid
+  group  = authentik_group.media.id
+  order  = 1
 }
 
 # --- Embedded Outpost (serves /outpost.goauthentik.io/auth/traefik) ---

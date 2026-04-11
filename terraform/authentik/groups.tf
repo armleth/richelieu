@@ -10,3 +10,7 @@ resource "authentik_group" "bbox" {
 resource "authentik_group" "dev" {
   name = "dev"
 }
+
+resource "authentik_group" "media" {
+  name = "media"
+}
