@@ -15,3 +15,4 @@ resources:
   - certificates/flood.yaml
   - certificates/homepage.yaml
   - certificates/code-server.yaml
+  - certificates/authentik.yaml

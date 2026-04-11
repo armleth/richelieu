@@ -11,7 +11,7 @@ resources:
   - cert-manager.yaml
   - cert-manager-config.yaml
   - cloudnative-pg.yaml
-  - keycloak.yaml
+  - authentik.yaml
   - media.yaml
   - nextcloud.yaml
   - homepage.yaml

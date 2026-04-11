@@ -1,38 +1,38 @@
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
-  name: keycloak-db-secret
-  namespace: keycloak
+  name: authentik-db-secret
+  namespace: authentik
 spec:
   refreshInterval: 1h
   secretStoreRef:
     name: vault-backend
     kind: ClusterSecretStore
   target:
-    name: keycloak-db-secret
+    name: authentik-db-secret
     template:
       data:
-        username: keycloak
+        username: authentik
         password: "{{ .password }}"
   data:
     - secretKey: password
       remoteRef:
-        key: secret/keycloak
+        key: secret/authentik
         property: db-password
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: keycloak-pg
-  namespace: keycloak
+  name: authentik-pg
+  namespace: authentik
 spec:
   instances: 1
   bootstrap:
     initdb:
-      database: keycloak
-      owner: keycloak
+      database: authentik
+      owner: authentik
       secret:
-        name: keycloak-db-secret
+        name: authentik-db-secret
   storage:
     size: 2Gi
   resources:

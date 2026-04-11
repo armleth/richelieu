@@ -1,16 +1,16 @@
 variable "vault_oidc_client_secret" {
   type        = string
   sensitive   = true
-  description = "OIDC client secret for Vault from Keycloak"
+  description = "OIDC client secret for Vault from Authentik"
   default     = ""
 }
 
-resource "vault_jwt_auth_backend" "keycloak" {
+resource "vault_jwt_auth_backend" "oidc" {
   count = var.vault_oidc_client_secret != "" ? 1 : 0
 
   type               = "oidc"
   path               = "oidc"
-  oidc_discovery_url = "https://auth.armleth.fr/realms/infrastructure"
+  oidc_discovery_url = "https://auth.armleth.fr/application/o/vault/"
   oidc_client_id     = "vault"
   oidc_client_secret = var.vault_oidc_client_secret
   default_role       = "default"
@@ -23,7 +23,7 @@ resource "vault_jwt_auth_backend" "keycloak" {
 resource "vault_jwt_auth_backend_role" "default" {
   count = var.vault_oidc_client_secret != "" ? 1 : 0
 
-  backend       = vault_jwt_auth_backend.keycloak[0].path
+  backend       = vault_jwt_auth_backend.oidc[0].path
   role_name     = "default"
   role_type     = "oidc"
   token_ttl     = 3600
@@ -53,10 +53,10 @@ resource "vault_identity_group" "admins" {
   policies = [vault_policy.admin.name]
 }
 
-resource "vault_identity_group_alias" "admins_keycloak" {
+resource "vault_identity_group_alias" "admins_oidc" {
   count = var.vault_oidc_client_secret != "" ? 1 : 0
 
-  name           = "admins"
-  mount_accessor = vault_jwt_auth_backend.keycloak[0].accessor
+  name           = "admin"
+  mount_accessor = vault_jwt_auth_backend.oidc[0].accessor
   canonical_id   = vault_identity_group.admins[0].id
 }

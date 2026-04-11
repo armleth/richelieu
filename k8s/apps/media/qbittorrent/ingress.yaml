@@ -13,5 +13,8 @@ spec:
       services:
         - name: qbittorrent-service
           port: 8080
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: authentik
   tls:
     secretName: qbittorrent-tls-secret

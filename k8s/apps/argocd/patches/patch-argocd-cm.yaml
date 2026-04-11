@@ -6,10 +6,10 @@ data:
   url: https://argocd.armleth.fr
   accounts.admin.enabled: "true"
   oidc.config: |
-    name: Keycloak
-    issuer: https://auth.armleth.fr/realms/infrastructure
+    name: Authentik
+    issuer: https://auth.armleth.fr/application/o/argocd/
     clientID: argocd
-    clientSecret: $argocd-oidc-secret:oidc.keycloak.clientSecret
+    clientSecret: $argocd-oidc-secret:oidc.authentik.clientSecret
     requestedScopes:
       - openid
       - profile

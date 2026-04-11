@@ -10,14 +10,14 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **ArgoCD v3.3.2** (self-managed via app-of-apps pattern)
 - **HashiCorp Vault** (secrets backend)
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
-- **CloudNativePG** (PostgreSQL operator -- manages Keycloak's and Nextcloud's databases)
+- **CloudNativePG** (PostgreSQL operator -- manages Authentik's and Nextcloud's databases)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
-- **Keycloak** (centralized OIDC authentication for ArgoCD, Vault, Bbox, Homepage and Code Server)
+- **Authentik** (centralized OIDC + proxy authentication for ArgoCD, Vault, Homepage, Bbox, Code Server, and media stack)
 - **Media stack** (Jellyfin, Radarr, Sonarr, Prowlarr, FlareSolverr, qBittorrent, Flood)
 - **Nextcloud** (file sync & sharing with Redis caching and PostgreSQL backend)
 - **Homepage** (OIDC-protected dashboard with per-service resource monitoring -- home.armleth.fr)
 - **Code Server** (OIDC-protected VS Code in the browser -- dev.armleth.fr)
-- **Terraform** (Vault and Keycloak configuration as code)
+- **Terraform** (Vault and Authentik configuration as code)
 
 ## Repository structure
 
@@ -30,10 +30,11 @@ k8s/
       kustomization.yaml                    # Upstream install.yaml + patches + resources
       namespace.yaml
       ingress.yaml                          # IngressRoute for argocd.armleth.fr
+      external-secret-oidc.yaml             # OIDC client secret for Authentik (from Vault)
       patches/
-        patch-argocd-cm.yaml                # Admin account + URL + OIDC config
+        patch-argocd-cm.yaml                # Admin account + URL + OIDC config (Authentik)
         patch-argocd-cmd-params-cm.yaml     # server.insecure (TLS at Traefik)
-        patch-argocd-rbac-cm.yaml           # RBAC: Keycloak admins -> role:admin
+        patch-argocd-rbac-cm.yaml           # RBAC: Authentik admin -> role:admin
       templates/                            # App-of-apps Application CRs
     vault-config/
       ingress.yaml                          # IngressRoute for vault.armleth.fr
@@ -43,7 +44,16 @@ k8s/
     cert-manager-config/
       cluster-issuer.yaml                   # Let's Encrypt ClusterIssuer (HTTP-01)
       certificates/                         # TLS certificates for all services
-    bbox/                                   # Nginx reverse proxy to 192.168.1.254 (OIDC-protected)
+    authentik/                              # Authentik identity provider (auth.armleth.fr)
+      postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
+      redis.yaml                            # Redis Deployment + Service for caching/sessions
+      external-secret.yaml                  # Authentik core secrets (ExternalSecret from Vault)
+      deployment-server.yaml                # Authentik server (ghcr.io/goauthentik/server)
+      deployment-worker.yaml                # Authentik background worker
+      service.yaml                          # Authentik Service
+      ingress.yaml                          # IngressRoute for auth.armleth.fr
+      middleware.yaml                       # Traefik ForwardAuth middleware
+    bbox/                                   # Nginx reverse proxy to 192.168.1.254 (ForwardAuth via Authentik)
     media/                                  # Media stack (all services in namespace: media)
       downloads-pvc.yaml                    # Shared 100Gi PVC for torrent downloads
       jellyfin/                             # Media server (media.armleth.fr)
@@ -58,17 +68,11 @@ k8s/
       configmap.yaml                        # Homepage YAML configuration files
       deployment.yaml                       # Homepage (ghcr.io/gethomepage/homepage)
       service.yaml                          # Homepage Service
-      ingress.yaml                          # IngressRoute for home.armleth.fr (routes to oauth2-proxy)
-      external-secret.yaml                  # OIDC credentials (ExternalSecret from Vault)
-      oauth2-proxy-deployment.yaml          # OAuth2-proxy for Keycloak authentication
-      oauth2-proxy-service.yaml             # OAuth2-proxy Service
+      ingress.yaml                          # IngressRoute for home.armleth.fr (ForwardAuth via Authentik)
     code-server/                            # VS Code in the browser (dev.armleth.fr, OIDC-protected)
       deployment.yaml                       # code-server (codercom/code-server)
       service.yaml                          # code-server Service
-      ingress.yaml                          # IngressRoute for dev.armleth.fr (routes to oauth2-proxy)
-      external-secret.yaml                  # OIDC credentials (ExternalSecret from Vault)
-      oauth2-proxy-deployment.yaml          # OAuth2-proxy for Keycloak authentication
-      oauth2-proxy-service.yaml             # OAuth2-proxy Service
+      ingress.yaml                          # IngressRoute for dev.armleth.fr (ForwardAuth via Authentik)
     nextcloud/
       pvc.yaml                              # 100Gi PVC for Nextcloud data
       postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
@@ -77,17 +81,9 @@ k8s/
       deployment.yaml                       # Nextcloud (nextcloud:latest)
       service.yaml                          # Nextcloud Service
       ingress.yaml                          # IngressRoute for nextcloud.armleth.fr
-    keycloak/
-      postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
-      deployment.yaml                       # Keycloak 26.1 (quay.io/keycloak/keycloak)
-      service.yaml                          # Keycloak Service
-      admin-secret.yaml                     # Keycloak admin credentials (ExternalSecret from Vault)
-      ingress.yaml                          # IngressRoute for auth.armleth.fr
-      certificate.yaml                      # TLS certificate for auth.armleth.fr
-      external-secret-argocd-oidc.yaml      # OIDC client secret for ArgoCD (from Vault)
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
-  keycloak/                                 # Realm, OIDC clients (argocd, vault, bbox, homepage, code-server), groups, master admin group
+  authentik/                                # Groups, OIDC providers, proxy providers, applications, policy bindings
 ```
 
 ## Bootstrap
@@ -126,7 +122,7 @@ kubectl exec -n vault vault-0 -- vault operator unseal "$UNSEAL_KEY"
 
 **Save `vault-init.json` securely.** Vault must be unsealed after every pod restart.
 
-### 5. Configure Vault and store Keycloak secrets
+### 5. Configure Vault
 
 ```bash
 kubectl port-forward -n vault svc/vault 8200:8200 &
@@ -138,12 +134,6 @@ cd terraform/vault
 terraform init
 terraform apply
 cd ../..
-
-# Generate and store Keycloak passwords in Vault
-kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
-  vault kv put secret/keycloak \
-    admin-password="$(openssl rand -base64 24)" \
-    db-password="$(openssl rand -base64 24)"
 ```
 
 ### 6. Verify ESO
@@ -154,61 +144,44 @@ kubectl get clustersecretstore vault-backend
 
 Status should show `Valid`.
 
-### 7. Configure Keycloak
+### 7. Store Authentik secrets and deploy
 
 ```bash
-kubectl wait --for=condition=Ready pods -l app=keycloak -n keycloak --timeout=600s
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv put secret/authentik \
+    admin-password="$(openssl rand -base64 24)" \
+    secret-key="$(openssl rand -base64 60)" \
+    db-password="$(openssl rand -base64 24)"
+```
 
-kubectl port-forward -n keycloak svc/keycloak 8080:80 &
+### 8. Configure Authentik
 
-export KEYCLOAK_URL=http://localhost:8080
-export KEYCLOAK_USER=admin
-export KEYCLOAK_PASSWORD=$(kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
-  vault kv get -field=admin-password secret/keycloak)
+```bash
+kubectl wait --for=condition=Ready pods -l app=authentik-server -n authentik --timeout=600s
 
-cd terraform/keycloak
+kubectl port-forward -n authentik svc/authentik-server 9000:80 &
+
+# Create API token in Authentik admin UI, then:
+export AUTHENTIK_URL=http://localhost:9000
+export AUTHENTIK_TOKEN=<api-token>
+
+cd terraform/authentik
 terraform init
 terraform apply
 cd ../..
-```
 
-### 8. Store OIDC secrets and enable Vault OIDC
-
-Ensure port-forwards from steps 5 and 7 are still running.
-
-```bash
+# Store OIDC client secrets in Vault
 export VAULT_ADDR=http://127.0.0.1:8200
 export VAULT_TOKEN=$(jq -r '.root_token' vault-init.json)
 
-ARGOCD_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw argocd_client_secret)
+ARGOCD_CLIENT_SECRET=$(cd terraform/authentik && terraform output -raw argocd_client_secret)
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"
 
-VAULT_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw vault_client_secret)
+VAULT_CLIENT_SECRET=$(cd terraform/authentik && terraform output -raw vault_client_secret)
 cd terraform/vault
 terraform apply -var="vault_oidc_client_secret=$VAULT_CLIENT_SECRET"
 cd ../..
-
-BBOX_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw bbox_client_secret)
-COOKIE_SECRET=$(openssl rand -base64 32 | head -c 32)
-kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
-  vault kv put secret/bbox \
-    oidc-client-secret="$BBOX_CLIENT_SECRET" \
-    cookie-secret="$COOKIE_SECRET"
-
-HOMEPAGE_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw homepage_client_secret)
-COOKIE_SECRET=$(openssl rand -base64 32 | head -c 32)
-kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
-  vault kv put secret/homepage \
-    oidc-client-secret="$HOMEPAGE_CLIENT_SECRET" \
-    cookie-secret="$COOKIE_SECRET"
-
-CODE_SERVER_CLIENT_SECRET=$(cd terraform/keycloak && terraform output -raw code_server_client_secret)
-COOKIE_SECRET=$(openssl rand -base64 32 | head -c 32)
-kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
-  vault kv put secret/code-server \
-    oidc-client-secret="$CODE_SERVER_CLIENT_SECRET" \
-    cookie-secret="$COOKIE_SECRET"
 
 # Store Nextcloud secrets (admin + database passwords)
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
@@ -217,14 +190,14 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
     db-password="$(openssl rand -base64 24)"
 ```
 
-### 9. Create your Keycloak user
+### 9. Create your Authentik user
 
-Log in to `https://auth.armleth.fr` with user `admin` and the password from step 5.
+Log in to `https://auth.armleth.fr` with akadmin and the generated password from step 7.
 
-- In the **master** realm, create a user and add them to the `admin` group (grants full Keycloak admin privileges).
-- Switch to the **infrastructure** realm, create the same user and add them to the `admins` group.
+- Go to **Directory > Users** and create your user
+- Go to **Directory > Groups** and assign the user to the `admin` group
 
-You can then log into ArgoCD, Vault, Bbox, Homepage, and Code Server via the **Keycloak** SSO option.
+You can then log into ArgoCD, Vault, Bbox, Homepage, and Code Server via the **Authentik** SSO option.
 
 ## Adding a TLS certificate
 
@@ -360,13 +333,13 @@ User adds movie/show in Radarr/Sonarr
 
 Homepage is a lightweight dashboard at `https://home.armleth.fr` showing all services grouped by category (Media, Infrastructure). It uses the Kubernetes metrics API via an in-cluster ServiceAccount to display per-pod CPU and memory usage for each service, along with cluster-wide resource totals and host disk usage.
 
-**Authentication**: Homepage is protected with OAuth2-proxy using Keycloak OIDC. Only users in the `admins` group can access the dashboard.
+**Authentication**: Homepage is protected with Authentik ForwardAuth. Any authenticated Authentik user can access the dashboard.
 
 **Prerequisite**: `metrics-server` must be running in the cluster (pre-installed with K3s). Verify with `kubectl top nodes`.
 
 ## Code Server
 
-Code Server provides VS Code in the browser at `https://dev.armleth.fr`. It runs with `--auth=none` since all authentication is handled by OAuth2-proxy using Keycloak OIDC. Only users in the `admins` group can access the editor. A 5Gi PVC persists the `/home/coder` directory (workspace, extensions, settings) across restarts.
+Code Server provides VS Code in the browser at `https://dev.armleth.fr`. It runs with `--auth=none` since all authentication is handled by Authentik ForwardAuth. Users in the `admin` or `dev` group can access the editor. A 5Gi PVC persists the `/home/coder` directory (workspace, extensions, settings) across restarts.
 
 ## Jellyfin hardware acceleration
 
@@ -429,5 +402,5 @@ This repository is the single source of truth. All changes go through git -- Arg
 
 Manual operations:
 - **Vault unseal** (after pod restarts)
-- **`terraform apply`** (when changing Vault or Keycloak configuration)
-- **Keycloak user management** (via admin UI or Terraform)
+- **`terraform apply`** (when changing Vault or Authentik configuration)
+- **Authentik user management** (via admin UI at auth.armleth.fr)

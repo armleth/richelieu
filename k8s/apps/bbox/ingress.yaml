@@ -11,7 +11,10 @@ spec:
     - match: Host(`bbox.armleth.fr`)
       kind: Rule
       services:
-        - name: bbox-oauth2-proxy-service
-          port: 4180
+        - name: bbox-proxy-service
+          port: 80
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: authentik
   tls:
     secretName: bbox-tls-secret

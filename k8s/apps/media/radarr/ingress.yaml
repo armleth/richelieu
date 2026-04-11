@@ -13,5 +13,8 @@ spec:
       services:
         - name: radarr-service
           port: 7878
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: authentik
   tls:
     secretName: radarr-tls-secret

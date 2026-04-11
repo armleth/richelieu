@@ -13,5 +13,8 @@ spec:
       services:
         - name: flood-service
           port: 3000
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: authentik
   tls:
     secretName: flood-tls-secret

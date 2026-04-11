@@ -1,7 +1,7 @@
 # Contributing Guidelines
 
 ## Project Context
-This is a GitOps infrastructure repository for a single-node K3s cluster. ArgoCD manages all applications declaratively from this repo. The stack includes Vault, Keycloak, CloudNativePG, cert-manager, and External Secrets Operator.
+This is a GitOps infrastructure repository for a single-node K3s cluster. ArgoCD manages all applications declaratively from this repo. The stack includes Vault, Authentik, CloudNativePG, cert-manager, and External Secrets Operator.
 
 ## Core Principles
 
@@ -14,7 +14,7 @@ This is a GitOps infrastructure repository for a single-node K3s cluster. ArgoCD
 ### Security Practices
 - NEVER hardcode secrets in YAML or HCL files
 - All secrets MUST be stored in Vault and synced via ExternalSecret CRs
-- Use OIDC authentication via Keycloak for all services
+- Use OIDC/ForwardAuth authentication via Authentik for all services
 - TLS certificates MUST be managed by cert-manager with Let's Encrypt
 - All ingress endpoints MUST use HTTPS (TLS termination at Traefik)
 
@@ -27,7 +27,7 @@ This is a GitOps infrastructure repository for a single-node K3s cluster. ArgoCD
 - Use ArgoCD Application CRs in `k8s/apps/argocd/templates/` for new services
 
 ### Terraform Standards
-- Separate Terraform configs by service: `terraform/vault/`, `terraform/keycloak/`
+- Separate Terraform configs by service: `terraform/vault/`, `terraform/authentik/`
 - Use explicit provider versions
 - Store statefile locally (this is a homelab, not production)
 - Always run `terraform plan` before `terraform apply`
@@ -104,7 +104,7 @@ This is a GitOps infrastructure repository for a single-node K3s cluster. ArgoCD
 4. Create ExternalSecret CR in K8s manifest
 
 ### Modifying Terraform Configs
-1. Port-forward to the service if needed (Vault or Keycloak)
+1. Port-forward to the service if needed (Vault or Authentik)
 2. Set required environment variables
 3. Run `terraform plan` to preview
 4. Run `terraform apply` to execute

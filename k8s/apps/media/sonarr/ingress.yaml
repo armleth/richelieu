@@ -13,5 +13,8 @@ spec:
       services:
         - name: sonarr-service
           port: 8989
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: authentik
   tls:
     secretName: sonarr-tls-secret
