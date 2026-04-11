@@ -19,6 +19,9 @@ spec:
       containers:
         - name: flood
           image: jesec/flood:4.13.0
+          # --noauth: Authentik handles authentication
+          # --qbuser/--qbpass: placeholders required by Flood's CLI parser
+          #   even when qBittorrent auth is bypassed (https://github.com/jesec/flood/discussions/100)
           args:
             - --allowedpath
             - /downloads
@@ -26,9 +29,9 @@ spec:
             - --qburl
             - http://qbittorrent-service:8080
             - --qbuser
-            - admin
+            - placeholder
             - --qbpass
-            - ""
+            - placeholder
           env:
             - name: HOME
               value: "/config"
