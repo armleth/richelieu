@@ -48,10 +48,10 @@ spec:
                   key: admin-password
           resources:
             requests:
-              memory: 128Mi
+              memory: 256Mi
               cpu: 100m
             limits:
-              memory: 256Mi
+              memory: 600Mi
           readinessProbe:
             httpGet:
               path: /-/health/ready/
