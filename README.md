@@ -6,7 +6,7 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 
 ## Stack
 
-- **K3s** with Traefik ingress controller
+- **K3s** with Traefik ingress controller (cross-namespace middleware enabled via HelmChartConfig)
 - **ArgoCD v3.3.2** (self-managed via app-of-apps pattern)
 - **HashiCorp Vault** (secrets backend)
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
@@ -150,7 +150,7 @@ Status should show `Valid`.
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" sh -c '
   vault kv put secret/authentik \
     admin-password="$(openssl rand -base64 24)" \
-    secret-key="$(openssl rand -base64 60)" \
+    secret-key="$(openssl rand -base64 60 | tr -d '\\n')" \
     db-password="$(openssl rand -base64 24)"
   vault kv put secret/nextcloud \
     admin-password="$(openssl rand -base64 24)" \
@@ -158,7 +158,32 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" sh -c '
 '
 ```
 
-### 8. Configure Authentik
+### 8. Enable Traefik cross-namespace middleware
+
+Authentik's ForwardAuth middleware lives in the `authentik` namespace but is referenced by IngressRoutes in other namespaces. Traefik blocks this by default, so enable it:
+
+```bash
+cat <<'EOF' | kubectl apply -f -
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    providers:
+      kubernetesCRD:
+        allowCrossNamespace: true
+EOF
+```
+
+K3s will automatically redeploy Traefik with the new setting. Wait for it:
+
+```bash
+kubectl rollout status deployment/traefik -n kube-system --timeout=120s
+```
+
+### 9. Configure Authentik
 
 ```bash
 kubectl wait --for=condition=Ready pods -l app=authentik-server -n authentik --timeout=600s
@@ -197,7 +222,7 @@ cd ../..
 kubectl rollout restart deployment argocd-server -n argocd
 ```
 
-### 9. Create your Authentik user
+### 10. Create your Authentik user
 
 Log in to `https://auth.armleth.fr` using a recovery link (see step 8).
 
@@ -411,3 +436,4 @@ Manual operations:
 - **Vault unseal** (after pod restarts)
 - **`terraform apply`** (when changing Vault or Authentik configuration)
 - **Authentik user management** (via admin UI at auth.armleth.fr)
+- **Traefik HelmChartConfig** (persisted in cluster by K3s, only needed once at bootstrap)

@@ -95,13 +95,13 @@ data:
             namespace: vault
             app: vault
             podSelector: "app.kubernetes.io/name=vault"
-        - Keycloak:
-            icon: keycloak.png
+        - Authentik:
+            icon: authentik.png
             href: https://auth.armleth.fr
             description: Identity provider
-            namespace: keycloak
-            app: keycloak
-            podSelector: "app=keycloak"
+            namespace: authentik
+            app: authentik-server
+            podSelector: "app=authentik-server"
         - Nextcloud:
             icon: nextcloud.png
             href: https://nextcloud.armleth.fr
@@ -123,6 +123,15 @@ data:
             namespace: bbox
             app: bbox-proxy
             podSelector: "app=bbox-proxy"
+
+    - Dev:
+        - Code Server:
+            icon: code-server.png
+            href: https://dev.armleth.fr
+            description: Browser IDE
+            namespace: code-server
+            app: code-server
+            podSelector: "app=code-server"
 
   docker.yaml: |
 

@@ -95,7 +95,8 @@ This is a GitOps infrastructure repository for a single-node K3s cluster. ArgoCD
 4. Create certificate: `k8s/apps/cert-manager-config/certificates/<service>.yaml`
 5. Create ArgoCD Application: `k8s/apps/argocd/templates/<service>.yaml`
 6. Update kustomization.yaml files as needed
-7. Commit and push -- ArgoCD will sync automatically
+7. Update the homepage configuration in `k8s/apps/homepage/configmap.yaml` to add the new service entry in the appropriate category
+8. Commit and push -- ArgoCD will sync automatically
 
 ### Adding a Secret to Vault
 1. Port-forward to Vault: `kubectl port-forward -n vault svc/vault 8200:8200`
