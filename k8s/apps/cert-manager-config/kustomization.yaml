@@ -14,3 +14,4 @@ resources:
   - certificates/qbittorrent.yaml
   - certificates/flood.yaml
   - certificates/homepage.yaml
+  - certificates/code-server.yaml

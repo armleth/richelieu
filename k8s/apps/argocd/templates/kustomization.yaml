@@ -15,3 +15,4 @@ resources:
   - media.yaml
   - nextcloud.yaml
   - homepage.yaml
+  - code-server.yaml

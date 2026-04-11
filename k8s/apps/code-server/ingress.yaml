@@ -1,0 +1,17 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: code-server-ingress
+  namespace: code-server
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`dev.armleth.fr`)
+      kind: Rule
+      services:
+        - name: code-server-oauth2-proxy-service
+          port: 4180
+  tls:
+    secretName: code-server-tls-secret

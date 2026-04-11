@@ -94,3 +94,27 @@ output "homepage_client_secret" {
   value     = keycloak_openid_client.homepage.client_secret
   sensitive = true
 }
+
+resource "keycloak_openid_client" "code_server" {
+  realm_id  = keycloak_realm.infrastructure.id
+  client_id = "code-server"
+  name      = "Code Server"
+  enabled   = true
+
+  access_type              = "CONFIDENTIAL"
+  standard_flow_enabled    = true
+  direct_access_grants_enabled = false
+
+  root_url = "https://dev.armleth.fr"
+  valid_redirect_uris = [
+    "https://dev.armleth.fr/oauth2/callback",
+  ]
+  web_origins = [
+    "https://dev.armleth.fr",
+  ]
+}
+
+output "code_server_client_secret" {
+  value     = keycloak_openid_client.code_server.client_secret
+  sensitive = true
+}
