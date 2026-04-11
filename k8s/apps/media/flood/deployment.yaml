@@ -23,6 +23,8 @@ spec:
             - --allowedpath
             - /downloads
             - --noauth
+            - --qburl
+            - http://qbittorrent-service:8080
           env:
             - name: HOME
               value: "/config"

@@ -341,12 +341,13 @@ After pods are running, configure the services through their web UIs:
    - Root Folder: `/media/tv`
 
 4. **qBittorrent**:
+   - Tools > Options > Web UI > check "Bypass authentication for clients in whitelisted IP subnets" and add `0.0.0.0/0` (auth is handled by Authentik)
    - Settings > BitTorrent > Share Ratio Limiting
    - If you want to disable seeding, check "When ratio reaches" and set to `0`
    - Set action to "Stop torrent"
    - Click "Save" at the bottom
 
-5. **Flood**: On first login, connect to qBittorrent at `qbittorrent-service:8080`.
+5. **Flood**: No setup needed -- built-in auth is disabled via `--noauth` and qBittorrent connection is pre-configured via `--qburl` (Authentik handles authentication).
 
 6. **Jellyfin**: Add library paths for `/media/movies` and `/media/tv`.
 
