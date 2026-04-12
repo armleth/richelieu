@@ -23,7 +23,7 @@ spec:
               mountPath: /media
       containers:
         - name: nextcloud
-          image: nextcloud:latest
+          image: nextcloud:33-apache
           ports:
             - containerPort: 80
               name: http
