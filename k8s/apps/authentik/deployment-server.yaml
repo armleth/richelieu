@@ -24,7 +24,19 @@ spec:
             - name: AUTHENTIK_WEB__WORKERS
               value: "1"
             - name: AUTHENTIK_WEB__THREADS
-              value: "2"
+              value: "1"
+            - name: AUTHENTIK_LOG_LEVEL
+              value: "warning"
+            - name: AUTHENTIK_DISABLE_UPDATE_CHECK
+              value: "true"
+            - name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS
+              value: "true"
+            - name: AUTHENTIK_ERROR_REPORTING__ENABLED
+              value: "false"
+            - name: AUTHENTIK_AVATARS
+              value: "initials"
+            - name: AUTHENTIK_OUTPOSTS__DISCOVER
+              value: "false"
             - name: AUTHENTIK_POSTGRESQL__HOST
               value: authentik-pg-rw
             - name: AUTHENTIK_POSTGRESQL__PORT

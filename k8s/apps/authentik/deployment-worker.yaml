@@ -18,6 +18,16 @@ spec:
           image: ghcr.io/goauthentik/server:2024.12
           args: ["worker"]
           env:
+            - name: AUTHENTIK_WORKER__CONCURRENCY
+              value: "1"
+            - name: AUTHENTIK_LOG_LEVEL
+              value: "warning"
+            - name: AUTHENTIK_DISABLE_UPDATE_CHECK
+              value: "true"
+            - name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS
+              value: "true"
+            - name: AUTHENTIK_OUTPOSTS__DISCOVER
+              value: "false"
             - name: AUTHENTIK_POSTGRESQL__HOST
               value: authentik-pg-rw
             - name: AUTHENTIK_POSTGRESQL__PORT
