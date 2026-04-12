@@ -15,10 +15,10 @@ spec:
     spec:
       containers:
         - name: authentik
-          image: ghcr.io/goauthentik/server:2024.12
+          image: ghcr.io/goauthentik/server:2026.2.2
           args: ["worker"]
           env:
-            - name: AUTHENTIK_WORKER__CONCURRENCY
+            - name: AUTHENTIK_WORKER__THREADS
               value: "1"
             - name: AUTHENTIK_LOG_LEVEL
               value: "warning"
@@ -41,8 +41,6 @@ spec:
                 secretKeyRef:
                   name: authentik-db-secret
                   key: password
-            - name: AUTHENTIK_REDIS__HOST
-              value: authentik-redis
             - name: AUTHENTIK_SECRET_KEY
               valueFrom:
                 secretKeyRef:

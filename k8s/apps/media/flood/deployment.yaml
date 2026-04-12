@@ -35,6 +35,8 @@ spec:
           env:
             - name: HOME
               value: "/config"
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=192"
           ports:
             - containerPort: 3000
               name: http

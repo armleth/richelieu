@@ -10,6 +10,10 @@ spec:
           env:
             - name: MALLOC_ARENA_MAX
               value: "2"
+            - name: GOGC
+              value: "50"
+            - name: GOMEMLIMIT
+              value: "614MiB"
           resources:
             requests:
               memory: 256Mi

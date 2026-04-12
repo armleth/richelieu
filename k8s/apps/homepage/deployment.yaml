@@ -26,6 +26,8 @@ spec:
           env:
             - name: HOMEPAGE_ALLOWED_HOSTS
               value: home.armleth.fr
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=128"
           resources:
             requests:
               memory: 64Mi

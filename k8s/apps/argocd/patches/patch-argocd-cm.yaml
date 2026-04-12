@@ -5,6 +5,14 @@ metadata:
 data:
   url: https://argocd.armleth.fr
   accounts.admin.enabled: "true"
+  timeout.reconciliation: "300s"
+  resource.exclusions: |
+    - apiGroups:
+        - ""
+      kinds:
+        - "Events"
+      clusters:
+        - "*"
   oidc.config: |
     name: Authentik
     issuer: https://auth.armleth.fr/application/o/argocd/

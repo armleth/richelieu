@@ -22,6 +22,12 @@ spec:
           env:
             - name: TZ
               value: "Europe/Paris"
+            - name: HEADLESS
+              value: "true"
+            - name: DISABLE_MEDIA
+              value: "true"
+            - name: LOG_LEVEL
+              value: "warn"
           ports:
             - containerPort: 8191
               name: http

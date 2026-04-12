@@ -26,6 +26,12 @@ spec:
               value: "1000"
             - name: TZ
               value: "Europe/Paris"
+            - name: DOTNET_GCConserveMemory
+              value: "7"
+            - name: DOTNET_gcServer
+              value: "0"
+            - name: MALLOC_TRIM_THRESHOLD_
+              value: "131072"
           ports:
             - containerPort: 8989
               name: http
