@@ -21,6 +21,10 @@ spec:
             - containerPort: 9000
               name: http
           env:
+            - name: AUTHENTIK_WEB__WORKERS
+              value: "1"
+            - name: AUTHENTIK_WEB__THREADS
+              value: "2"
             - name: AUTHENTIK_POSTGRESQL__HOST
               value: authentik-pg-rw
             - name: AUTHENTIK_POSTGRESQL__PORT
@@ -48,10 +52,10 @@ spec:
                   key: admin-password
           resources:
             requests:
-              memory: 256Mi
-              cpu: 100m
+              memory: 150Mi
+              cpu: 50m
             limits:
-              memory: 1Gi
+              memory: 400Mi
           readinessProbe:
             httpGet:
               path: /-/health/ready/

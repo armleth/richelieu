@@ -44,19 +44,19 @@ spec:
     size: 2Gi
   resources:
     requests:
-      memory: 96Mi
-      cpu: 50m
+      memory: 64Mi
+      cpu: 25m
     limits:
-      memory: 192Mi
+      memory: 128Mi
   postgresql:
     parameters:
-      shared_buffers: "64MB"
-      max_connections: "20"
-      max_parallel_workers: "2"
-      max_worker_processes: "4"
+      shared_buffers: "32MB"
+      max_connections: "10"
+      max_parallel_workers: "1"
+      max_worker_processes: "2"
       max_parallel_workers_per_gather: "1"
       max_parallel_maintenance_workers: "1"
-      work_mem: "4MB"
-      maintenance_work_mem: "32MB"
-      effective_cache_size: "128MB"
-      wal_keep_size: "64MB"
+      work_mem: "2MB"
+      maintenance_work_mem: "16MB"
+      effective_cache_size: "64MB"
+      wal_keep_size: "32MB"
