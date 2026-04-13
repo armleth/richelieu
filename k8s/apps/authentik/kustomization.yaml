@@ -4,7 +4,6 @@ kind: Kustomization
 resources:
   - external-secret.yaml
   - postgres.yaml
-  - redis.yaml
   - deployment-server.yaml
   - deployment-worker.yaml
   - service.yaml
