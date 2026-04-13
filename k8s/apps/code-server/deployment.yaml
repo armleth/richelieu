@@ -40,11 +40,15 @@ spec:
       containers:
         - name: code-server
           image: codercom/code-server:4.115.0
+          command: ["/bin/sh", "-c"]
           args:
-            - --auth=none
-            - --bind-addr=0.0.0.0:8080
-            - --disable-telemetry
-            - --disable-getting-started-override
+            - |
+              grep -q '/opt/bun' ~/.bashrc 2>/dev/null || echo 'export PATH="/opt/bun:$PATH"' >> ~/.bashrc
+              exec code-server \
+                --auth=none \
+                --bind-addr=0.0.0.0:8080 \
+                --disable-telemetry \
+                --disable-getting-started-override
           env:
             - name: PATH
               value: "/opt/bun:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
