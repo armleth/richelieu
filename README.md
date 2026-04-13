@@ -10,13 +10,14 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **ArgoCD v3.3.2** (self-managed via app-of-apps pattern)
 - **HashiCorp Vault** (secrets backend)
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
-- **CloudNativePG** (PostgreSQL operator -- manages Authentik's and Nextcloud's databases)
+- **CloudNativePG** (PostgreSQL operator -- manages Authentik's, Nextcloud's, and Lathibandolaise's databases)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
-- **Authentik** (centralized OIDC + proxy authentication for ArgoCD, Vault, Homepage, Bbox, Code Server, and media stack)
+- **Authentik** (centralized OIDC + proxy authentication for ArgoCD, Vault, Homepage, Bbox, Code Server, Lathibandolaise, and media stack)
 - **Media stack** (Jellyfin, Radarr, Sonarr, Prowlarr, FlareSolverr, qBittorrent, Flood)
 - **Nextcloud** (file sync & sharing with Redis caching and PostgreSQL backend)
 - **Homepage** (OIDC-protected dashboard with per-service resource monitoring -- home.armleth.fr)
 - **Code Server** (OIDC-protected VS Code in the browser -- dev.armleth.fr)
+- **Lathibandolaise** (test + prod deployments with CNPG Postgres, ForwardAuth via Authentik -- test.lathibandolaise.dev.armleth.fr / prod.lathibandolaise.dev.armleth.fr)
 - **Terraform** (Vault and Authentik configuration as code)
 
 ## Repository structure
@@ -46,7 +47,6 @@ k8s/
       certificates/                         # TLS certificates for all services
     authentik/                              # Authentik identity provider (auth.armleth.fr)
       postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
-      redis.yaml                            # Redis Deployment + Service for caching/sessions
       external-secret.yaml                  # Authentik core secrets (ExternalSecret from Vault)
       deployment-server.yaml                # Authentik server (ghcr.io/goauthentik/server)
       deployment-worker.yaml                # Authentik background worker
@@ -81,9 +81,17 @@ k8s/
       deployment.yaml                       # Nextcloud (nextcloud:latest)
       service.yaml                          # Nextcloud Service
       ingress.yaml                          # IngressRoute for nextcloud.armleth.fr
+    lathibandolaise/                        # Test + prod app (ForwardAuth via Authentik)
+      postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
+      external-secret.yaml                  # App secret (DATABASE_URL) + GHCR pull secret
+      deployment-test.yaml                  # Test env (oven/bun:alpine, hostPath /data/lathibandolaise)
+      deployment-prod.yaml                  # Prod env (ghcr.io/armleth/lathibandolaise:latest)
+      service-test.yaml                     # Test Service (port 3000)
+      service-prod.yaml                     # Prod Service (port 3000)
+      ingress.yaml                          # IngressRoutes for test/prod subdomains
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
-  authentik/                                # Groups, OIDC providers, proxy providers, applications, policy bindings
+  authentik/                                # Groups, OIDC providers, proxy providers (incl. Lathibandolaise), applications, policy bindings
 ```
 
 ## Bootstrap
@@ -155,6 +163,9 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" sh -c '
   vault kv put secret/nextcloud \
     admin-password="$(openssl rand -base64 24)" \
     db-password="$(openssl rand -base64 24)"
+  vault kv put secret/lathibandolaise \
+    db-password="$(openssl rand -base64 24)" \
+    ghcr-pat="<base64-encoded armleth:github-pat>"
 '
 ```
 
@@ -372,7 +383,36 @@ Homepage is a lightweight dashboard at `https://home.armleth.fr` showing all ser
 
 ## Code Server
 
-Code Server provides VS Code in the browser at `https://dev.armleth.fr`. It runs with `--auth=none` since all authentication is handled by Authentik ForwardAuth. Users in the `admin` or `dev` group can access the editor. A 5Gi PVC persists the `/home/coder` directory (workspace, extensions, settings) across restarts.
+Code Server provides VS Code in the browser at `https://dev.armleth.fr`. It runs with `--auth=none` since all authentication is handled by Authentik ForwardAuth. Users in the `admin` or `dev` group can access the editor. A 5Gi PVC persists the `/home/coder` directory (workspace, extensions, settings) across restarts. The `/data/lathibandolaise` hostPath is mounted at `/home/coder/lathibandolaise` for shared access with the test deployment.
+
+## Lathibandolaise
+
+Lathibandolaise runs in a single namespace with test and prod deployments, both protected by Authentik ForwardAuth (admin + dev groups).
+
+| Environment | URL | Image | Source |
+|---|---|---|---|
+| Test | `test.lathibandolaise.dev.armleth.fr` | `oven/bun:alpine` | hostPath `/data/lathibandolaise` |
+| Prod | `prod.lathibandolaise.dev.armleth.fr` | `ghcr.io/armleth/lathibandolaise:latest` | GHCR (private repo) |
+
+### Setup
+
+1. Store secrets in Vault:
+
+```bash
+vault kv put secret/lathibandolaise \
+  db-password="$(openssl rand -base64 24)" \
+  ghcr-pat="$(echo -n 'armleth:<github-pat>' | base64)"
+```
+
+2. Seed the test code on the host:
+
+```bash
+git clone git@github.com:armleth/lathibandolaise.git /data/lathibandolaise
+```
+
+3. DNS: Add A/CNAME records for `test.lathibandolaise.dev.armleth.fr` and `prod.lathibandolaise.dev.armleth.fr`.
+
+4. Prod will work once `ghcr.io/armleth/lathibandolaise:latest` is pushed from the app repo.
 
 ## Jellyfin hardware acceleration
 
