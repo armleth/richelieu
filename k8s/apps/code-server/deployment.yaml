@@ -30,7 +30,7 @@ spec:
     spec:
       initContainers:
         - name: install-bun
-          image: oven/bun:alpine
+          image: oven/bun:debian
           command: ["/bin/sh", "-c"]
           args:
             - cp /usr/local/bin/bun /bun-bin/bun
