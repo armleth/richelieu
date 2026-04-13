@@ -31,12 +31,19 @@ spec:
       containers:
         - name: code-server
           image: codercom/code-server:4.115.0
+          command: ["/bin/sh", "-c"]
           args:
-            - --auth=none
-            - --bind-addr=0.0.0.0:8080
-            - --disable-telemetry
-            - --disable-getting-started-override
+            - |
+              curl -fsSL https://bun.sh/install | bash &&
+              export PATH="$HOME/.bun/bin:$PATH" &&
+              exec code-server \
+                --auth=none \
+                --bind-addr=0.0.0.0:8080 \
+                --disable-telemetry \
+                --disable-getting-started-override
           env:
+            - name: PATH
+              value: "/home/coder/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             - name: GIT_AUTHOR_NAME
               value: "Armleth"
             - name: GIT_AUTHOR_EMAIL
@@ -63,13 +70,13 @@ spec:
             httpGet:
               path: /healthz
               port: 8080
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /healthz
               port: 8080
-            initialDelaySeconds: 20
+            initialDelaySeconds: 60
             periodSeconds: 30
       volumes:
         - name: data
