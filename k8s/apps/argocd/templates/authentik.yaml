@@ -16,11 +16,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: authentik
-  ignoreDifferences:
-    - group: postgresql.cnpg.io
-      kind: Cluster
-      jsonPointers:
-        - /spec
   syncPolicy:
     automated:
       prune: true
