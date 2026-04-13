@@ -23,7 +23,7 @@ spec:
       containers:
         - name: lathibandolaise-test
           image: oven/bun:alpine
-          command: ["bun", "--watch", "src/index.tsx"]
+          command: ["sh", "-c", "bun --watch src/index.tsx 2>&1 | tee /app/bun.log"]
           workingDir: /app
           ports:
             - containerPort: 3000
