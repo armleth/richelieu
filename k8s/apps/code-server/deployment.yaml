@@ -48,6 +48,8 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /home/coder
+            - name: lathibandolaise-code
+              mountPath: /home/coder/lathibandolaise
           readinessProbe:
             httpGet:
               path: /healthz
@@ -64,3 +66,7 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: code-server-data
+        - name: lathibandolaise-code
+          hostPath:
+            path: /data/lathibandolaise
+            type: DirectoryOrCreate

@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lathibandolaise-test-service
+  namespace: lathibandolaise
+spec:
+  selector:
+    app: lathibandolaise-test
+  ports:
+    - port: 3000
+      targetPort: 3000

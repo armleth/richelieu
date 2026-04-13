@@ -210,6 +210,62 @@ resource "authentik_policy_binding" "flood_media" {
   order  = 1
 }
 
+# --- Lathibandolaise Test (admin + dev groups) ---
+
+resource "authentik_provider_proxy" "lathibandolaise_test" {
+  name               = "Lathibandolaise Test"
+  authorization_flow = data.authentik_flow.default_authorization.id
+  invalidation_flow  = data.authentik_flow.default_invalidation.id
+  external_host      = "https://test.lathibandolaise.dev.${local.domain}"
+  mode               = "forward_single"
+}
+
+resource "authentik_application" "lathibandolaise_test" {
+  name              = "Lathibandolaise Test"
+  slug              = "lathibandolaise-test"
+  protocol_provider = authentik_provider_proxy.lathibandolaise_test.id
+}
+
+resource "authentik_policy_binding" "lathibandolaise_test_admin" {
+  target = authentik_application.lathibandolaise_test.uuid
+  group  = authentik_group.admin.id
+  order  = 0
+}
+
+resource "authentik_policy_binding" "lathibandolaise_test_dev" {
+  target = authentik_application.lathibandolaise_test.uuid
+  group  = authentik_group.dev.id
+  order  = 1
+}
+
+# --- Lathibandolaise Prod (admin + dev groups) ---
+
+resource "authentik_provider_proxy" "lathibandolaise_prod" {
+  name               = "Lathibandolaise Prod"
+  authorization_flow = data.authentik_flow.default_authorization.id
+  invalidation_flow  = data.authentik_flow.default_invalidation.id
+  external_host      = "https://prod.lathibandolaise.dev.${local.domain}"
+  mode               = "forward_single"
+}
+
+resource "authentik_application" "lathibandolaise_prod" {
+  name              = "Lathibandolaise Prod"
+  slug              = "lathibandolaise-prod"
+  protocol_provider = authentik_provider_proxy.lathibandolaise_prod.id
+}
+
+resource "authentik_policy_binding" "lathibandolaise_prod_admin" {
+  target = authentik_application.lathibandolaise_prod.uuid
+  group  = authentik_group.admin.id
+  order  = 0
+}
+
+resource "authentik_policy_binding" "lathibandolaise_prod_dev" {
+  target = authentik_application.lathibandolaise_prod.uuid
+  group  = authentik_group.dev.id
+  order  = 1
+}
+
 # --- Embedded Outpost (serves /outpost.goauthentik.io/auth/traefik) ---
 
 resource "authentik_outpost" "embedded" {
@@ -223,5 +279,7 @@ resource "authentik_outpost" "embedded" {
     authentik_provider_proxy.prowlarr.id,
     authentik_provider_proxy.qbittorrent.id,
     authentik_provider_proxy.flood.id,
+    authentik_provider_proxy.lathibandolaise_test.id,
+    authentik_provider_proxy.lathibandolaise_prod.id,
   ]
 }

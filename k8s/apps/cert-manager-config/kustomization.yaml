@@ -16,3 +16,5 @@ resources:
   - certificates/homepage.yaml
   - certificates/code-server.yaml
   - certificates/authentik.yaml
+  - certificates/lathibandolaise-test.yaml
+  - certificates/lathibandolaise-prod.yaml

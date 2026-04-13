@@ -1,0 +1,42 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lathibandolaise-test
+  namespace: lathibandolaise
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lathibandolaise-test
+  template:
+    metadata:
+      labels:
+        app: lathibandolaise-test
+    spec:
+      containers:
+        - name: lathibandolaise-test
+          image: oven/bun:alpine
+          command: ["bun", "--watch", "src/index.tsx"]
+          workingDir: /app
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: lathibandolaise-app-secret
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          hostPath:
+            path: /data/lathibandolaise
+            type: DirectoryOrCreate

@@ -16,3 +16,4 @@ resources:
   - nextcloud.yaml
   - homepage.yaml
   - code-server.yaml
+  - lathibandolaise.yaml

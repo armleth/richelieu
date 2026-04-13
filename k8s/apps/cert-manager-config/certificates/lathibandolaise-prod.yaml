@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lathibandolaise-prod-tls
+  namespace: lathibandolaise
+spec:
+  secretName: lathibandolaise-prod-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - prod.lathibandolaise.dev.armleth.fr

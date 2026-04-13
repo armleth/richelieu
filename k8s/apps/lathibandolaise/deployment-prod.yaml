@@ -1,0 +1,32 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lathibandolaise-prod
+  namespace: lathibandolaise
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lathibandolaise-prod
+  template:
+    metadata:
+      labels:
+        app: lathibandolaise-prod
+    spec:
+      imagePullSecrets:
+        - name: lathibandolaise-ghcr-secret
+      containers:
+        - name: lathibandolaise-prod
+          image: ghcr.io/armleth/lathibandolaise:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: lathibandolaise-app-secret
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi

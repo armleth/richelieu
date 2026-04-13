@@ -1,0 +1,56 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: lathibandolaise-test-ingress
+  namespace: lathibandolaise
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`test.lathibandolaise.dev.armleth.fr`) && PathPrefix(`/outpost.goauthentik.io/`)
+      kind: Rule
+      priority: 15
+      services:
+        - name: authentik-server
+          namespace: authentik
+          port: 80
+    - match: Host(`test.lathibandolaise.dev.armleth.fr`)
+      kind: Rule
+      priority: 10
+      services:
+        - name: lathibandolaise-test-service
+          port: 3000
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: authentik
+  tls:
+    secretName: lathibandolaise-test-tls-secret
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: lathibandolaise-prod-ingress
+  namespace: lathibandolaise
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`prod.lathibandolaise.dev.armleth.fr`) && PathPrefix(`/outpost.goauthentik.io/`)
+      kind: Rule
+      priority: 15
+      services:
+        - name: authentik-server
+          namespace: authentik
+          port: 80
+    - match: Host(`prod.lathibandolaise.dev.armleth.fr`)
+      kind: Rule
+      priority: 10
+      services:
+        - name: lathibandolaise-prod-service
+          port: 3000
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: authentik
+  tls:
+    secretName: lathibandolaise-prod-tls-secret

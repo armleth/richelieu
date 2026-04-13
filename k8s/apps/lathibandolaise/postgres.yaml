@@ -1,0 +1,56 @@
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: lathibandolaise-db-secret
+  namespace: lathibandolaise
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: lathibandolaise-db-secret
+    template:
+      data:
+        username: lathibandolaise
+        password: "{{ .password }}"
+  data:
+    - secretKey: password
+      remoteRef:
+        key: secret/lathibandolaise
+        property: db-password
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: lathibandolaise-pg
+  namespace: lathibandolaise
+spec:
+  instances: 1
+  bootstrap:
+    initdb:
+      database: lathibandolaise
+      owner: lathibandolaise
+      secret:
+        name: lathibandolaise-db-secret
+  storage:
+    size: 2Gi
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 128Mi
+  postgresql:
+    parameters:
+      shared_buffers: "32MB"
+      max_connections: "20"
+      max_parallel_workers: "2"
+      max_worker_processes: "4"
+      max_parallel_workers_per_gather: "1"
+      max_parallel_maintenance_workers: "1"
+      work_mem: "4MB"
+      maintenance_work_mem: "32MB"
+      effective_cache_size: "64MB"
+      wal_keep_size: "64MB"
