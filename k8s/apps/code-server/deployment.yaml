@@ -75,17 +75,21 @@ spec:
               mountPath: /home/coder
             - name: lathibandolaise-code
               mountPath: /home/coder/lathibandolaise
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 5
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8080
-            initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /healthz
               port: 8080
-            initialDelaySeconds: 20
             periodSeconds: 30
       volumes:
         - name: data
