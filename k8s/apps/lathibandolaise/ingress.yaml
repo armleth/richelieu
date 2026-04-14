@@ -20,7 +20,7 @@ spec:
       priority: 10
       services:
         - name: lathibandolaise-test-service
-          port: 3000
+          port: 8080
       middlewares:
         - name: authentik-forward-auth
           namespace: authentik
@@ -48,7 +48,7 @@ spec:
       priority: 10
       services:
         - name: lathibandolaise-prod-service
-          port: 3000
+          port: 8080
       middlewares:
         - name: authentik-forward-auth
           namespace: authentik

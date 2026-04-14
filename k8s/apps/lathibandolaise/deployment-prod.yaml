@@ -20,7 +20,7 @@ spec:
         - name: lathibandolaise-prod
           image: ghcr.io/armleth/lathibandolaise:latest
           ports:
-            - containerPort: 3000
+            - containerPort: 8080
           envFrom:
             - secretRef:
                 name: lathibandolaise-app-secret

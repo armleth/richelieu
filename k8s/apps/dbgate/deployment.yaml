@@ -1,0 +1,43 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dbgate
+  namespace: lathibandolaise
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dbgate
+  template:
+    metadata:
+      labels:
+        app: dbgate
+    spec:
+      containers:
+        - name: dbgate
+          image: dbgate/dbgate
+          ports:
+            - containerPort: 3000
+          env:
+            - name: CONNECTIONS
+              value: con1
+            - name: LABEL_con1
+              value: lathibandolaise
+            - name: SERVER_con1
+              value: lathibandolaise-pg-rw
+            - name: PORT_con1
+              value: "5432"
+            - name: ENGINE_con1
+              value: postgres@dbgate-plugin-postgres
+            - name: DATABASE_con1
+              value: lathibandolaise
+          envFrom:
+            - secretRef:
+                name: dbgate-app-secret
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 256Mi

@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: dbgate-tls
+  namespace: lathibandolaise
+spec:
+  secretName: dbgate-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - db.lathibandolaise.dev.armleth.fr

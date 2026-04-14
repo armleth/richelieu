@@ -1,0 +1,28 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: dbgate-ingress
+  namespace: lathibandolaise
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`db.lathibandolaise.dev.armleth.fr`) && PathPrefix(`/outpost.goauthentik.io/`)
+      kind: Rule
+      priority: 15
+      services:
+        - name: authentik-server
+          namespace: authentik
+          port: 80
+    - match: Host(`db.lathibandolaise.dev.armleth.fr`)
+      kind: Rule
+      priority: 10
+      services:
+        - name: dbgate-service
+          port: 3000
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: authentik
+  tls:
+    secretName: dbgate-tls-secret

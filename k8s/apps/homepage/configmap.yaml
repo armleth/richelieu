@@ -133,19 +133,26 @@ data:
             app: code-server
             podSelector: "app=code-server"
         - Lathibandolaise Test:
-            icon: bun.png
+            icon: php.png
             href: https://test.lathibandolaise.dev.armleth.fr
             description: Lathibandolaise (test)
             namespace: lathibandolaise
             app: lathibandolaise-test
             podSelector: "app=lathibandolaise-test"
         - Lathibandolaise Prod:
-            icon: bun.png
+            icon: php.png
             href: https://prod.lathibandolaise.dev.armleth.fr
             description: Lathibandolaise (prod)
             namespace: lathibandolaise
             app: lathibandolaise-prod
             podSelector: "app=lathibandolaise-prod"
+        - DbGate:
+            icon: dbgate.png
+            href: https://db.lathibandolaise.dev.armleth.fr
+            description: Database visualizer
+            namespace: lathibandolaise
+            app: dbgate
+            podSelector: "app=dbgate"
 
   docker.yaml: |
 

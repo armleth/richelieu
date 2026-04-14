@@ -18,3 +18,4 @@ resources:
   - certificates/authentik.yaml
   - certificates/lathibandolaise-test.yaml
   - certificates/lathibandolaise-prod.yaml
+  - certificates/dbgate.yaml

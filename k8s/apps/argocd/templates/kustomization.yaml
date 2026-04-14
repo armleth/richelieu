@@ -17,3 +17,4 @@ resources:
   - homepage.yaml
   - code-server.yaml
   - lathibandolaise.yaml
+  - dbgate.yaml
