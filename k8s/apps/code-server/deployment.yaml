@@ -47,7 +47,7 @@ spec:
             - |
               sudo apt-get update -qq > /dev/null 2>&1
               sudo apt-get install -y -qq php-cli php-pgsql composer > /dev/null 2>&1
-              code-server --install-extension bmewburn.vscode-intelephense-client > /dev/null 2>&1 &
+              code-server --install-extension bmewburn.vscode-intelephense-client > /dev/null 2>&1
               exec code-server \
                 --auth=none \
                 --bind-addr=0.0.0.0:8080 \
