@@ -19,7 +19,7 @@ spec:
       containers:
         - name: lathibandolaise-test
           image: php:8.3-cli-alpine
-          command: ["sh", "-c", "apk add postgresql-dev && docker-php-ext-install pdo_pgsql && php -S 0.0.0.0:8080 -t /app/public"]
+          command: ["sh", "-c", "apk add postgresql-dev && docker-php-ext-install pdo_pgsql && php -S 0.0.0.0:8080 -t /app/public 2>&1 | tee /app/php.log"]
           workingDir: /app
           ports:
             - containerPort: 8080

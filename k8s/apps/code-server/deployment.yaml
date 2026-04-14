@@ -29,14 +29,6 @@ spec:
         app: code-server
     spec:
       initContainers:
-        - name: install-bun
-          image: oven/bun:debian
-          command: ["/bin/sh", "-c"]
-          args:
-            - cp /usr/local/bin/bun /bun-bin/bun
-          volumeMounts:
-            - name: bun-bin
-              mountPath: /bun-bin
         - name: fix-permissions
           image: busybox
           command: ["/bin/sh", "-c"]
@@ -53,15 +45,14 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              grep -q '/opt/bun' ~/.bashrc 2>/dev/null || echo 'export PATH="/opt/bun:$PATH"' >> ~/.bashrc
+              sudo apt-get update -qq > /dev/null 2>&1
+              sudo apt-get install -y -qq php-cli php-pgsql composer > /dev/null 2>&1
               exec code-server \
                 --auth=none \
                 --bind-addr=0.0.0.0:8080 \
                 --disable-telemetry \
                 --disable-getting-started-override
           env:
-            - name: PATH
-              value: "/opt/bun:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             - name: GIT_AUTHOR_NAME
               value: "Armleth"
             - name: GIT_AUTHOR_EMAIL
@@ -84,8 +75,6 @@ spec:
               mountPath: /home/coder
             - name: lathibandolaise-code
               mountPath: /home/coder/lathibandolaise
-            - name: bun-bin
-              mountPath: /opt/bun
           readinessProbe:
             httpGet:
               path: /healthz
@@ -106,5 +95,3 @@ spec:
           hostPath:
             path: /data/lathibandolaise
             type: DirectoryOrCreate
-        - name: bun-bin
-          emptyDir: {}
