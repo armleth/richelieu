@@ -46,11 +46,16 @@ spec:
           args:
             - |
               sudo apt-get update -qq > /dev/null 2>&1
-              sudo apt-get install -y -qq php-cli php-pgsql composer > /dev/null 2>&1
+              sudo apt-get install -y -qq php-cli php-pgsql composer npm > /dev/null 2>&1
               if ! ls ~/.local/share/code-server/extensions/bmewburn.vscode-intelephense-client-* > /dev/null 2>&1; then
                 curl -sL --compressed -o /tmp/intelephense.vsix "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/bmewburn/vsextensions/vscode-intelephense-client/1.16.5/vspackage" \
                   && code-server --install-extension /tmp/intelephense.vsix > /dev/null 2>&1 \
                   && rm -f /tmp/intelephense.vsix || true
+              fi
+              if ! ls ~/.local/share/code-server/extensions/esbenp.prettier-vscode-* > /dev/null 2>&1; then
+                curl -sL --compressed -o /tmp/prettier.vsix "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/esbenp/vsextensions/prettier-vscode/11.0.0/vspackage" \
+                  && code-server --install-extension /tmp/prettier.vsix > /dev/null 2>&1 \
+                  && rm -f /tmp/prettier.vsix || true
               fi
               exec code-server \
                 --auth=none \
