@@ -57,6 +57,11 @@ spec:
                   && code-server --install-extension /tmp/prettier.vsix > /dev/null 2>&1 \
                   && rm -f /tmp/prettier.vsix || true
               fi
+              if ! ls ~/.local/share/code-server/extensions/rifi2k.format-html-in-php-* > /dev/null 2>&1; then
+                curl -sL --compressed -o /tmp/format-html-in-php.vsix "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/rifi2k/vsextensions/format-html-in-php/1.7.0/vspackage" \
+                  && code-server --install-extension /tmp/format-html-in-php.vsix > /dev/null 2>&1 \
+                  && rm -f /tmp/format-html-in-php.vsix || true
+              fi
               if [ -f /home/coder/lathibandolaise/package.json ] && [ ! -d /home/coder/lathibandolaise/node_modules ]; then
                 cd /home/coder/lathibandolaise && npm install > /dev/null 2>&1
               fi
