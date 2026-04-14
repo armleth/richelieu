@@ -57,6 +57,9 @@ spec:
                   && code-server --install-extension /tmp/prettier.vsix > /dev/null 2>&1 \
                   && rm -f /tmp/prettier.vsix || true
               fi
+              if [ -f /home/coder/lathibandolaise/package.json ] && [ ! -d /home/coder/lathibandolaise/node_modules ]; then
+                cd /home/coder/lathibandolaise && npm install > /dev/null 2>&1
+              fi
               exec code-server \
                 --auth=none \
                 --bind-addr=0.0.0.0:8080 \
