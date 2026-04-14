@@ -266,6 +266,34 @@ resource "authentik_policy_binding" "lathibandolaise_prod_dev" {
   order  = 1
 }
 
+# --- DbGate (admin + dev groups) ---
+
+resource "authentik_provider_proxy" "dbgate" {
+  name               = "DbGate"
+  authorization_flow = data.authentik_flow.default_authorization.id
+  invalidation_flow  = data.authentik_flow.default_invalidation.id
+  external_host      = "https://db.lathibandolaise.dev.${local.domain}"
+  mode               = "forward_single"
+}
+
+resource "authentik_application" "dbgate" {
+  name              = "DbGate"
+  slug              = "dbgate"
+  protocol_provider = authentik_provider_proxy.dbgate.id
+}
+
+resource "authentik_policy_binding" "dbgate_admin" {
+  target = authentik_application.dbgate.uuid
+  group  = authentik_group.admin.id
+  order  = 0
+}
+
+resource "authentik_policy_binding" "dbgate_dev" {
+  target = authentik_application.dbgate.uuid
+  group  = authentik_group.dev.id
+  order  = 1
+}
+
 # --- Embedded Outpost (serves /outpost.goauthentik.io/auth/traefik) ---
 
 resource "authentik_outpost" "embedded" {
@@ -281,5 +309,6 @@ resource "authentik_outpost" "embedded" {
     authentik_provider_proxy.flood.id,
     authentik_provider_proxy.lathibandolaise_test.id,
     authentik_provider_proxy.lathibandolaise_prod.id,
+    authentik_provider_proxy.dbgate.id,
   ]
 }
