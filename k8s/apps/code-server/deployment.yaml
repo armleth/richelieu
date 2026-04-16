@@ -72,11 +72,11 @@ spec:
                 --disable-getting-started-override
           env:
             - name: GIT_AUTHOR_NAME
-              value: "Armleth"
+              value: "armleth"
             - name: GIT_AUTHOR_EMAIL
               value: "armleth@proton.me"
             - name: GIT_COMMITTER_NAME
-              value: "Armleth"
+              value: "armleth"
             - name: GIT_COMMITTER_EMAIL
               value: "armleth@proton.me"
           ports:
