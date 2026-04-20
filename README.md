@@ -102,11 +102,55 @@ terraform/
 
 ## Bootstrap
 
+Everything in this section runs from your **workstation**, not on the K3s node. The only things that happen on the node are two host-level directory operations (step 9), which you either run over SSH automatically or execute manually.
+
+### 0. Workstation prerequisites
+
+Install locally: `kubectl`, `terraform`, `jq`, `openssl`, `git`.
+
+Fetch the K3s kubeconfig into the default location `~/.kube/config` and point it at the server's real address:
+
+```bash
+mkdir -p ~/.kube
+ssh armleth@<server> sudo cat /etc/rancher/k3s/k3s.yaml > ~/.kube/config
+chmod 600 ~/.kube/config
+sed -i "s|https://127.0.0.1:6443|https://<server>:6443|" ~/.kube/config
+kubectl get nodes   # sanity check
+```
+
+(If you already manage other clusters in `~/.kube/config`, merge instead of overwriting: `KUBECONFIG=~/.kube/config:./new.yaml kubectl config view --flatten > ~/.kube/merged && mv ~/.kube/merged ~/.kube/config`.)
+
+Optional but recommended for step 9 (lets the script run host-level commands over SSH instead of pausing for manual action):
+
+```bash
+export RICHELIEU_SSH_HOST=armleth@<server>
+```
+
+Then run `./setup.sh` to execute every step below automatically, or follow them manually. `vault-init.json` (written in step 4) is saved at the repo root on your workstation and is already in `.gitignore` -- move it to a password manager or encrypted backup once bootstrap is done.
+
 ### 1. Deploy ArgoCD
 
 ```bash
-kubectl apply -k k8s/bootstrap/ --server-side
+kubectl apply -k k8s/bootstrap/ --server-side --force-conflicts \
+  --field-manager=argocd-controller
 ```
+
+`--field-manager=argocd-controller` is important: it writes every field under the same SSA manager ArgoCD itself uses after bootstrap. Without it, the default `kubectl` manager ends up permanently co-owning the same fields as `argocd-controller` on the app-of-apps Application CRs. That co-ownership causes SSA conflicts on later syncs, and ArgoCD's self-heal retry injects `syncStrategy.hook.force: true` into the sync operation -- which maps to kubectl's `--force` flag and is rejected with `error validating options: --force cannot be used with --server-side`. The parent `argocd` app then gets stuck `OutOfSync` in an infinite retry loop. This mainly affects child Applications with `argocd.argoproj.io/sync-wave` annotations (`cert-manager`, `cert-manager-config`, `authentik`), because v3.3.2 routes later-wave applies through a kubectl-subprocess path that actually emits `--force`.
+
+Expect transient errors during the first minutes that go away on retry:
+
+- `no matches for kind "Application"` / `no matches for kind "ExternalSecret"` -- CRDs are being created in the same pass as the CRs that use them; the API discovery cache is stale until the next apply. The `ExternalSecret` CRD is installed only once ArgoCD has synced the `external-secrets` Application (1-3 min).
+- `Apply failed with N conflicts: conflict with "argocd-controller"` -- ArgoCD starts reconciling itself mid-bootstrap and grabs field ownership. `--force-conflicts` tells the API server to hand ownership back to our apply (git is source of truth). Because we apply under the same field manager (`argocd-controller`), ownership stays consistent afterwards.
+- `failed calling webhook ... no endpoints available for service "external-secrets-webhook"` -- the admission webhook pods haven't finished rolling out.
+
+Run the command in a loop until it exits cleanly:
+
+```bash
+until kubectl apply -k k8s/bootstrap/ --server-side --force-conflicts \
+    --field-manager=argocd-controller; do sleep 10; done
+```
+
+`setup.sh` does this automatically (with a 10-minute timeout and an error-allowlist so genuine failures surface immediately).
 
 ### 2. Wait for ArgoCD pods
 
@@ -134,7 +178,7 @@ UNSEAL_KEY=$(jq -r '.unseal_keys_b64[0]' vault-init.json)
 kubectl exec -n vault vault-0 -- vault operator unseal "$UNSEAL_KEY"
 ```
 
-**Save `vault-init.json` securely.** Vault must be unsealed after every pod restart.
+`vault-init.json` is written to your workstation, **not** the node -- keep it safe (password manager or encrypted backup) and out of git. Vault must be unsealed after every pod restart.
 
 ### 5. Configure Vault
 
@@ -305,14 +349,18 @@ downloads.media.armleth.fr
 
 ### Host setup
 
-Create the media directories and set ownership to UID/GID 1000 (used by linuxserver.io containers):
+Create the media directories on the K3s node and set ownership to UID/GID 1000 (used by linuxserver.io containers). From your workstation:
 
 ```bash
-sudo mkdir -p /data/media/movies /data/media/tv
-sudo chown 1000:1000 /data/media/movies /data/media/tv
+ssh armleth@<server> '
+  sudo mkdir -p /data/media/movies /data/media/tv
+  sudo chown 1000:1000 /data/media/movies /data/media/tv
+'
 ```
 
-Alternatively, if you cannot access the host directly, create the directories from within a running pod:
+(`setup.sh` does this automatically when `RICHELIEU_SSH_HOST` is exported.)
+
+Alternatively, create the directories from within a running pod (useful if SSH isn't available):
 
 ```bash
 kubectl exec -n media deploy/radarr -- mkdir -p /media/movies /media/tv
@@ -416,10 +464,10 @@ vault kv put secret/lathibandolaise \
   ghcr-pat="$(echo -n 'armleth:<github-pat>' | base64)"
 ```
 
-2. Seed the test code on the host:
+2. Seed the test code on the K3s node (requires a GitHub-authorised SSH key on the node, or agent-forward from your workstation with `ssh -A`):
 
 ```bash
-git clone git@github.com:armleth/lathibandolaise.git /data/lathibandolaise
+ssh armleth@<server> 'sudo git clone git@github.com:armleth/lathibandolaise.git /data/lathibandolaise'
 ```
 
 3. DNS: Add A/CNAME records for `test.lathibandolaise.dev.armleth.fr` and `prod.lathibandolaise.dev.armleth.fr`.
@@ -489,8 +537,14 @@ Jellyfin and Nextcloud share a `/data/media` hostPath volume. To upload films th
 
 This repository is the single source of truth. All changes go through git -- ArgoCD syncs automatically with pruning and self-healing enabled.
 
-Manual operations:
-- **Vault unseal** (after pod restarts)
-- **`terraform apply`** (when changing Vault or Authentik configuration)
-- **Authentik user management** (via admin UI at auth.armleth.fr)
-- **Traefik HelmChartConfig** (persisted in cluster by K3s, only needed once at bootstrap)
+Manual operations (all runnable from your workstation with `KUBECONFIG` pointing at the cluster):
+
+- **Vault unseal** (after pod restarts):
+  ```bash
+  UNSEAL_KEY=$(jq -r '.unseal_keys_b64[0]' vault-init.json)
+  kubectl exec -n vault vault-0 -- vault operator unseal "$UNSEAL_KEY"
+  # or: ./setup.sh 4
+  ```
+- **`terraform apply`** (when changing Vault or Authentik configuration). Port-forward first: `kubectl port-forward -n vault svc/vault 8200:8200` (or `authentik`).
+- **Authentik user management** (via admin UI at auth.armleth.fr).
+- **Traefik HelmChartConfig** (persisted in cluster by K3s, only needed once at bootstrap).

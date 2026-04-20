@@ -139,6 +139,20 @@ step_argocd_bootstrap() {
     # --force-conflicts: ArgoCD will start reconciling its own resources
     # mid-bootstrap and grab field ownership; git is the source of truth,
     # so our apply must win those conflicts.
+    #
+    # --field-manager=argocd-controller: write every field under the same
+    # SSA field manager ArgoCD itself uses. Without this, kubectl's default
+    # manager ("kubectl") ends up co-owning the same fields as
+    # argocd-controller, which is a permanent SSA conflict source. In that
+    # state, ArgoCD's self-heal retry logic injects
+    # `syncStrategy.hook.force: true` into the sync op, which translates to
+    # kubectl's --force flag -- incompatible with --server-side -- and the
+    # parent argocd app gets stuck OutOfSync in an infinite retry loop
+    # ("error validating options: --force cannot be used with --server-side").
+    # This primarily bites Applications that carry an
+    # `argocd.argoproj.io/sync-wave` annotation (cert-manager,
+    # cert-manager-config, authentik), because v3.3.2 routes later-wave
+    # applies through a kubectl-subprocess path that actually emits --force.
     local max_wait=600         # 10 minutes
     local interval=10
     local elapsed=0
@@ -154,7 +168,8 @@ step_argocd_bootstrap() {
     #       etc. are still rolling out).
     local retryable='(ensure CRDs are installed first|no matches for kind|could not find the requested resource|no endpoints available for service|failed calling webhook)'
     while (( elapsed < max_wait )); do
-        if kubectl apply -k k8s/bootstrap/ --server-side --force-conflicts >"$log_file" 2>&1; then
+        if kubectl apply -k k8s/bootstrap/ --server-side --force-conflicts \
+                --field-manager=argocd-controller >"$log_file" 2>&1; then
             cat "$log_file"
             rm -f "$log_file"
             log "  bootstrap applied cleanly after ${elapsed}s"
@@ -277,13 +292,19 @@ step_verify_eso() {
 }
 
 ########################################
-# Ensure VAULT_TOKEN is set (e.g. when resuming the script from a later step).
+# Ensure VAULT_TOKEN and VAULT_ADDR are set (e.g. when resuming the script
+# from a later step, in which case step_vault_init_unseal didn't run).
+# The terraform vault provider silently hangs (retrying TLS against a
+# plain-HTTP port-forward) when VAULT_ADDR is missing.
 ########################################
 ensure_vault_token() {
     if [[ -z "${VAULT_TOKEN:-}" ]]; then
         [[ -s "$VAULT_INIT_FILE" ]] || die "VAULT_TOKEN unset and $VAULT_INIT_FILE is missing; run from an earlier step."
         export VAULT_TOKEN
         VAULT_TOKEN=$(jq -r '.root_token' "$VAULT_INIT_FILE")
+    fi
+    if [[ -z "${VAULT_ADDR:-}" ]]; then
+        export VAULT_ADDR="http://127.0.0.1:${VAULT_PF_PORT}"
     fi
 }
 
@@ -455,6 +476,22 @@ step_authentik_terraform() {
     (
         cd terraform/authentik
         terraform init -upgrade
+
+        # The "authentik Embedded Outpost" is auto-created by Authentik
+        # itself on startup, so our resource declaration would collide
+        # with it. If it isn't already in state, import it first.
+        if ! terraform state list 2>/dev/null | grep -q '^authentik_outpost\.embedded$'; then
+            local embedded_pk
+            embedded_pk=$(curl -sS \
+                -H "Authorization: Bearer $AUTHENTIK_TOKEN" \
+                "${AUTHENTIK_URL}/api/v3/outposts/instances/?name_iexact=authentik+Embedded+Outpost" \
+                | python3 -c 'import json,sys; r=json.load(sys.stdin)["results"]; print(r[0]["pk"] if r else "")')
+            if [[ -n "$embedded_pk" ]]; then
+                log "  importing existing Embedded Outpost ($embedded_pk) into terraform state"
+                terraform import authentik_outpost.embedded "$embedded_pk"
+            fi
+        fi
+
         # -parallelism=1 avoids hammering Authentik's API server with
         # concurrent requests, which otherwise triggers 500/405 responses
         # when the DB / server is under memory pressure.
