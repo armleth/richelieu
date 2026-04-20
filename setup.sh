@@ -10,17 +10,34 @@
 # Lathibandolaise repo via an SSH-authenticated git clone) pause the script
 # and prompt the operator to complete the action before continuing.
 #
-# Usage:
-#   ./setup.sh            # run the full bootstrap
-#   ./setup.sh <step>     # run from a specific step (e.g. ./setup.sh 5)
+# This script is designed to run from your workstation, not on the K3s
+# node itself. Every cluster operation goes through kubectl / port-forward,
+# so your workstation only needs network access to the API server on 6443.
 #
-# Requirements on the local machine:
-#   - kubectl pointing at the K3s cluster
+# The only host-level operations are creating /data/media and cloning
+# /data/lathibandolaise on the node; those are performed over SSH when
+# the RICHELIEU_SSH_HOST environment variable is set (e.g.
+# "armleth@richelieu.lan"). Without it, the script prints the commands
+# to run manually on the node.
+#
+# Usage:
+#   # kubectl already configured via ~/.kube/config pointing at the remote
+#   # K3s cluster (see README "Workstation prerequisites").
+#   export RICHELIEU_SSH_HOST=armleth@<server>   # optional but recommended
+#   ./setup.sh                                   # full bootstrap
+#   ./setup.sh <step>                            # resume from a specific step
+#
+# Output: vault-init.json is written to the repo root on the workstation
+# (already in .gitignore). Keep it safe -- it contains the Vault root
+# token and unseal key.
+#
+# Requirements on the workstation:
+#   - kubectl (~/.kube/config pointing at the remote K3s cluster)
 #   - terraform
 #   - jq
 #   - openssl
 #   - git
-#   - ssh access to github.com (for the lathibandolaise clone on the host)
+#   - ssh, if RICHELIEU_SSH_HOST is set
 
 set -euo pipefail
 
@@ -30,6 +47,11 @@ cd "$REPO_ROOT"
 VAULT_PF_PORT=8200
 AUTHENTIK_PF_PORT=9000
 VAULT_INIT_FILE="$REPO_ROOT/vault-init.json"
+
+# If set, host-level commands (mkdir /data/media, git clone
+# /data/lathibandolaise) run over SSH against this host instead of
+# prompting the operator to do them manually.
+SSH_HOST="${RICHELIEU_SSH_HOST:-}"
 
 PF_PIDS=()
 
@@ -103,7 +125,58 @@ step_prereqs() {
 ########################################
 step_argocd_bootstrap() {
     log "Step 1: applying ArgoCD bootstrap (app-of-apps)"
-    kubectl apply -k k8s/bootstrap/ --server-side
+    # The bootstrap kustomization contains CRDs AND custom resources that use
+    # them, so a single apply cannot converge:
+    #   - ArgoCD's install.yaml creates the Application CRD; Application CRs
+    #     in templates/ are rejected in the same pass with
+    #     "no matches for kind Application" (discovery-cache race).
+    #   - argocd-oidc-secret is an ExternalSecret, but the external-secrets
+    #     operator CRDs are installed by ArgoCD itself after syncing the
+    #     external-secrets Application (takes 1-3 minutes).
+    # Retry until every resource is accepted. kubectl apply exits non-zero
+    # when any resource fails, so we loop until a clean run.
+    #
+    # --force-conflicts: ArgoCD will start reconciling its own resources
+    # mid-bootstrap and grab field ownership; git is the source of truth,
+    # so our apply must win those conflicts.
+    local max_wait=600         # 10 minutes
+    local interval=10
+    local elapsed=0
+    local log_file
+    log_file=$(mktemp)
+    # Retryable errors during convergence:
+    #   - "no matches for kind ..." / "ensure CRDs are installed first"
+    #       CRDs haven't been registered yet (discovery-cache race).
+    #   - "could not find the requested resource"
+    #       Same family of errors from older kubectl versions.
+    #   - 'no endpoints available for service "..."'
+    #       Admission webhooks not yet ready (external-secrets, cert-manager,
+    #       etc. are still rolling out).
+    local retryable='(ensure CRDs are installed first|no matches for kind|could not find the requested resource|no endpoints available for service|failed calling webhook)'
+    while (( elapsed < max_wait )); do
+        if kubectl apply -k k8s/bootstrap/ --server-side --force-conflicts >"$log_file" 2>&1; then
+            cat "$log_file"
+            rm -f "$log_file"
+            log "  bootstrap applied cleanly after ${elapsed}s"
+            return 0
+        fi
+        # Only tolerate the known transient errors; anything else (RBAC,
+        # quota, typo, ...) should fail loudly.
+        if ! grep -qE "$retryable" "$log_file"; then
+            cat "$log_file" >&2
+            rm -f "$log_file"
+            die "bootstrap apply failed for reasons other than missing CRDs / unready webhooks (see above)"
+        fi
+        local crd_missing webhook_down
+        crd_missing=$(grep -c "no matches for kind" "$log_file" || true)
+        webhook_down=$(grep -Ec 'no endpoints available|failed calling webhook' "$log_file" || true)
+        log "  still converging (CRD-missing: ${crd_missing}, webhook-down: ${webhook_down}); retrying in ${interval}s (elapsed ${elapsed}s)"
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+    done
+    cat "$log_file" >&2
+    rm -f "$log_file"
+    die "bootstrap apply never converged after ${max_wait}s"
 }
 
 ########################################
@@ -204,10 +277,22 @@ step_verify_eso() {
 }
 
 ########################################
+# Ensure VAULT_TOKEN is set (e.g. when resuming the script from a later step).
+########################################
+ensure_vault_token() {
+    if [[ -z "${VAULT_TOKEN:-}" ]]; then
+        [[ -s "$VAULT_INIT_FILE" ]] || die "VAULT_TOKEN unset and $VAULT_INIT_FILE is missing; run from an earlier step."
+        export VAULT_TOKEN
+        VAULT_TOKEN=$(jq -r '.root_token' "$VAULT_INIT_FILE")
+    fi
+}
+
+########################################
 # Step 7: store Authentik / Nextcloud / Lathibandolaise secrets in Vault
 ########################################
 step_seed_secrets() {
     log "Step 7: seeding application secrets in Vault"
+    ensure_vault_token
 
     printf '    A GitHub Personal Access Token is required for the Lathibandolaise GHCR pull secret.\n'
     printf '    It will be base64-encoded as "armleth:<PAT>".\n'
@@ -218,22 +303,40 @@ step_seed_secrets() {
     local ghcr_b64
     ghcr_b64=$(printf 'armleth:%s' "$ghcr_pat" | base64 -w0)
 
-    # Run everything inside the vault-0 pod using its own vault CLI.
-    # Passing VAULT_TOKEN via env so it never appears on a command line.
+    # Generate random values on the workstation (openssl may not exist in
+    # the Vault/OpenBao container image). Pass everything to the pod as env
+    # vars so no secret ever appears on a command line.
+    local authentik_admin_password authentik_secret_key authentik_db_password
+    local nextcloud_admin_password nextcloud_db_password
+    local lathibandolaise_db_password
+    authentik_admin_password=$(openssl rand -base64 24)
+    authentik_secret_key=$(openssl rand -base64 60 | tr -d '\n')
+    authentik_db_password=$(openssl rand -base64 24)
+    nextcloud_admin_password=$(openssl rand -base64 24)
+    nextcloud_db_password=$(openssl rand -base64 24)
+    lathibandolaise_db_password=$(openssl rand -base64 24)
+
     kubectl exec -n vault vault-0 \
-        --env VAULT_TOKEN="$VAULT_TOKEN" \
-        --env GHCR_B64="$ghcr_b64" \
-        -- sh -c '
+        -- env \
+            VAULT_TOKEN="$VAULT_TOKEN" \
+            AUTHENTIK_ADMIN_PASSWORD="$authentik_admin_password" \
+            AUTHENTIK_SECRET_KEY="$authentik_secret_key" \
+            AUTHENTIK_DB_PASSWORD="$authentik_db_password" \
+            NEXTCLOUD_ADMIN_PASSWORD="$nextcloud_admin_password" \
+            NEXTCLOUD_DB_PASSWORD="$nextcloud_db_password" \
+            LATHIBANDOLAISE_DB_PASSWORD="$lathibandolaise_db_password" \
+            GHCR_B64="$ghcr_b64" \
+        sh -c '
             set -e
             vault kv put secret/authentik \
-                admin-password="$(openssl rand -base64 24)" \
-                secret-key="$(openssl rand -base64 60 | tr -d "\n")" \
-                db-password="$(openssl rand -base64 24)"
+                admin-password="$AUTHENTIK_ADMIN_PASSWORD" \
+                secret-key="$AUTHENTIK_SECRET_KEY" \
+                db-password="$AUTHENTIK_DB_PASSWORD"
             vault kv put secret/nextcloud \
-                admin-password="$(openssl rand -base64 24)" \
-                db-password="$(openssl rand -base64 24)"
+                admin-password="$NEXTCLOUD_ADMIN_PASSWORD" \
+                db-password="$NEXTCLOUD_DB_PASSWORD"
             vault kv put secret/lathibandolaise \
-                db-password="$(openssl rand -base64 24)" \
+                db-password="$LATHIBANDOLAISE_DB_PASSWORD" \
                 ghcr-pat="$GHCR_B64"
         '
 }
@@ -273,23 +376,51 @@ step_coredns_patch() {
 # Step 9: host data directories (media + lathibandolaise)
 ########################################
 step_host_dirs() {
-    log "Step 9: host data directories"
+    log "Step 9: host data directories on the K3s node"
 
-    if [[ $EUID -eq 0 ]] || sudo -n true 2>/dev/null; then
-        sudo mkdir -p /data/media/movies /data/media/tv
-        sudo chown 1000:1000 /data/media/movies /data/media/tv
+    if [[ -n "$SSH_HOST" ]]; then
+        log "  using SSH target: $SSH_HOST"
+
+        # -t forces a TTY on the remote so sudo can prompt for a password
+        # when passwordless sudo isn't configured. Harmless otherwise.
+        ssh -t "$SSH_HOST" 'sudo mkdir -p /data/media/movies /data/media/tv \
+            && sudo chown 1000:1000 /data/media/movies /data/media/tv'
+
+        if ssh "$SSH_HOST" 'test -d /data/lathibandolaise/.git'; then
+            log "  /data/lathibandolaise already exists"
+        else
+            log "  cloning Lathibandolaise via SSH agent forwarding"
+            if [[ -z "${SSH_AUTH_SOCK:-}" ]] || ! ssh-add -l >/dev/null 2>&1; then
+                warn "No SSH agent / identity detected on this workstation."
+                warn "Start one and add your GitHub key before continuing, e.g.:"
+                warn "    eval \"\$(ssh-agent -s)\""
+                warn "    ssh-add ~/.ssh/id_ed25519"
+                pause "Press ENTER once your agent has the GitHub key loaded."
+            fi
+
+            # -A forwards the local SSH agent so git-over-SSH on the node can
+            # authenticate to GitHub with your workstation key (no key ever
+            # lands on the server). We pre-create the target directory owned
+            # by the SSH user so the clone doesn't need sudo (which would
+            # strip SSH_AUTH_SOCK).
+            ssh -A -t "$SSH_HOST" '
+                set -e
+                sudo mkdir -p /data/lathibandolaise
+                sudo chown "$(id -u):$(id -g)" /data/lathibandolaise
+                mkdir -p ~/.ssh
+                touch ~/.ssh/known_hosts
+                ssh-keyscan -H github.com 2>/dev/null >> ~/.ssh/known_hosts
+                sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
+                git clone git@github.com:armleth/lathibandolaise.git /data/lathibandolaise
+            '
+        fi
     else
-        warn "Cannot sudo non-interactively; skipping /data/media setup."
-        warn "Run manually on the host:"
+        warn "RICHELIEU_SSH_HOST is not set; cannot run host-level commands."
+        warn "Open another terminal, SSH into the K3s node, and run:"
         warn "    sudo mkdir -p /data/media/movies /data/media/tv"
         warn "    sudo chown 1000:1000 /data/media/movies /data/media/tv"
-    fi
-
-    if [[ ! -d /data/lathibandolaise ]]; then
-        pause "Clone the Lathibandolaise repo on the host with your GitHub SSH key:
-       sudo git clone git@github.com:armleth/lathibandolaise.git /data/lathibandolaise"
-    else
-        log "  /data/lathibandolaise already exists"
+        warn "    sudo git clone git@github.com:armleth/lathibandolaise.git /data/lathibandolaise"
+        pause "Run the commands above on the K3s node, then press ENTER to continue."
     fi
 }
 
@@ -298,6 +429,7 @@ step_host_dirs() {
 ########################################
 step_authentik_terraform() {
     log "Step 10: waiting for Authentik server pod"
+    ensure_vault_token
     kubectl wait --for=condition=Ready pods -l app=authentik-server -n authentik --timeout=600s
 
     log "  generating an Authentik recovery key for akadmin (valid 10 minutes)"
@@ -323,7 +455,10 @@ step_authentik_terraform() {
     (
         cd terraform/authentik
         terraform init -upgrade
-        terraform apply -auto-approve
+        # -parallelism=1 avoids hammering Authentik's API server with
+        # concurrent requests, which otherwise triggers 500/405 responses
+        # when the DB / server is under memory pressure.
+        terraform apply -auto-approve -parallelism=1
     )
 
     argocd_client_secret=$(cd terraform/authentik && terraform output -raw argocd_client_secret)
@@ -337,13 +472,12 @@ step_authentik_terraform() {
     local vault_pf_pid="${PF_PIDS[-1]}"
 
     kubectl exec -n vault vault-0 \
-        --env VAULT_TOKEN="$VAULT_TOKEN" \
-        --env ARGOCD_CLIENT_SECRET="$argocd_client_secret" \
-        -- vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"
+        -- env VAULT_TOKEN="$VAULT_TOKEN" ARGOCD_CLIENT_SECRET="$argocd_client_secret" \
+        sh -c 'vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"'
 
     kubectl exec -n vault vault-0 \
-        --env VAULT_TOKEN="$VAULT_TOKEN" \
-        -- vault kv get -field=oidc-client-secret secret/argocd >/dev/null
+        -- env VAULT_TOKEN="$VAULT_TOKEN" \
+        vault kv get -field=oidc-client-secret secret/argocd >/dev/null
 
     log "  re-applying terraform/vault with the Authentik OIDC client secret"
     (
@@ -400,11 +534,14 @@ Manual follow-ups (cannot be automated):
     "Media" folder -- see "Adding media via Nextcloud" in README.md.
 
 Remember:
- - Vault must be re-unsealed after every pod restart:
+ - Vault must be re-unsealed after every pod restart. From this
+   workstation (KUBECONFIG still pointing at the cluster):
      UNSEAL_KEY=\$(jq -r '.unseal_keys_b64[0]' $VAULT_INIT_FILE)
      kubectl exec -n vault vault-0 -- vault operator unseal "\$UNSEAL_KEY"
+   Or: ./setup.sh 4   (re-runs just the init/unseal step)
  - $VAULT_INIT_FILE contains the root token and unseal key.
-   Move it off the cluster host and keep it somewhere safe.
+   It lives on this workstation, NOT on the K3s node -- keep it safe
+   (password manager, encrypted backup, etc.) and out of git.
 ============================================================
 EOF
 }
