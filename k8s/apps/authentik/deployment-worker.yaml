@@ -48,7 +48,7 @@ spec:
                   key: secret-key
           resources:
             requests:
-              memory: 200Mi
+              memory: 300Mi
               cpu: 25m
             limits:
-              memory: 500Mi
+              memory: 1Gi
