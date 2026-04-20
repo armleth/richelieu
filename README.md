@@ -12,12 +12,13 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
 - **CloudNativePG** (PostgreSQL operator -- manages Authentik's, Nextcloud's, and Lathibandolaise's databases)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
-- **Authentik** (centralized OIDC + proxy authentication for ArgoCD, Vault, Homepage, Bbox, Code Server, Lathibandolaise, and media stack)
+- **Authentik** (centralized OIDC + proxy authentication for ArgoCD, Vault, Homepage, Bbox, Code Server, Lathibandolaise, DbGate, and media stack)
 - **Media stack** (Jellyfin, Radarr, Sonarr, Prowlarr, FlareSolverr, qBittorrent, Flood)
 - **Nextcloud** (file sync & sharing with Redis caching and PostgreSQL backend)
 - **Homepage** (OIDC-protected dashboard with per-service resource monitoring -- home.armleth.fr)
 - **Code Server** (OIDC-protected VS Code in the browser -- dev.armleth.fr)
 - **Lathibandolaise** (test + prod deployments with CNPG Postgres, ForwardAuth via Authentik -- test.lathibandolaise.dev.armleth.fr / prod.lathibandolaise.dev.armleth.fr)
+- **DbGate** (OIDC-protected database browser for the Lathibandolaise PostgreSQL cluster -- db.lathibandolaise.dev.armleth.fr)
 - **Terraform** (Vault and Authentik configuration as code)
 
 ## Repository structure
@@ -84,11 +85,16 @@ k8s/
     lathibandolaise/                        # Test + prod app (ForwardAuth via Authentik)
       postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
       external-secret.yaml                  # App secret (DATABASE_URL) + GHCR pull secret
-      deployment-test.yaml                  # Test env (oven/bun:alpine, hostPath /data/lathibandolaise)
+      deployment-test.yaml                  # Test env (php:8.3-cli-alpine, hostPath /data/lathibandolaise)
       deployment-prod.yaml                  # Prod env (ghcr.io/armleth/lathibandolaise:latest)
       service-test.yaml                     # Test Service (port 3000)
       service-prod.yaml                     # Prod Service (port 3000)
       ingress.yaml                          # IngressRoutes for test/prod subdomains
+    dbgate/                                 # DbGate database browser (db.lathibandolaise.dev.armleth.fr, OIDC-protected)
+      deployment.yaml                       # DbGate (dbgate/dbgate, connects to lathibandolaise-pg-rw)
+      external-secret.yaml                  # DB connection secret (reuses secret/lathibandolaise)
+      service.yaml                          # DbGate Service (port 3000)
+      ingress.yaml                          # IngressRoute for db.lathibandolaise.dev.armleth.fr (ForwardAuth via Authentik)
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
   authentik/                                # Groups, OIDC providers, proxy providers (incl. Lathibandolaise), applications, policy bindings
@@ -235,12 +241,18 @@ kubectl rollout restart deployment argocd-server -n argocd
 
 ### 10. Create your Authentik user
 
-Log in to `https://auth.armleth.fr` using a recovery link (see step 8).
+Log in to `https://auth.armleth.fr` using a recovery link (see step 9).
 
 - Go to **Directory > Users** and create your user
-- Go to **Directory > Groups** and assign the user to the `admin` group
+- Go to **Directory > Groups** and assign the user to the groups they need:
+  - `admin` -- full access (all services)
+  - `bbox` -- Bbox access for non-admins
+  - `dev` -- Code Server, Lathibandolaise (test/prod), DbGate
+  - `media` -- Radarr, Sonarr, Prowlarr, qBittorrent, Flood
 
-You can then log into ArgoCD, Vault, Bbox, Homepage, and Code Server via the **Authentik** SSO option.
+  Groups are managed declaratively in `terraform/authentik/groups.tf`; only user creation and assignment is done via the UI.
+
+You can then log into ArgoCD, Vault, Bbox, Homepage, Code Server, Lathibandolaise, DbGate, and the media stack via the **Authentik** SSO option.
 
 ## Adding a TLS certificate
 
@@ -391,7 +403,7 @@ Lathibandolaise runs in a single namespace with test and prod deployments, both 
 
 | Environment | URL | Image | Source |
 |---|---|---|---|
-| Test | `test.lathibandolaise.dev.armleth.fr` | `oven/bun:alpine` | hostPath `/data/lathibandolaise` |
+| Test | `test.lathibandolaise.dev.armleth.fr` | `php:8.3-cli-alpine` (with `pdo_pgsql`) | hostPath `/data/lathibandolaise` |
 | Prod | `prod.lathibandolaise.dev.armleth.fr` | `ghcr.io/armleth/lathibandolaise:latest` | GHCR (private repo) |
 
 ### Setup
@@ -413,6 +425,10 @@ git clone git@github.com:armleth/lathibandolaise.git /data/lathibandolaise
 3. DNS: Add A/CNAME records for `test.lathibandolaise.dev.armleth.fr` and `prod.lathibandolaise.dev.armleth.fr`.
 
 4. Prod will work once `ghcr.io/armleth/lathibandolaise:latest` is pushed from the app repo.
+
+## DbGate
+
+DbGate is a web-based database browser at `https://db.lathibandolaise.dev.armleth.fr`, deployed in the `lathibandolaise` namespace. It connects to the `lathibandolaise-pg-rw` CNPG service and reuses `secret/lathibandolaise:db-password` (surfaced via the `dbgate-app-secret` ExternalSecret). Authentication is handled by Authentik ForwardAuth -- users in the `admin` or `dev` group can access it.
 
 ## Jellyfin hardware acceleration
 
