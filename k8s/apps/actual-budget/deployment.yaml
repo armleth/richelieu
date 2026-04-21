@@ -19,6 +19,20 @@ spec:
           image: actualbudget/actual-server:latest
           ports:
             - containerPort: 5006
+          env:
+            - name: ACTUAL_LOGIN_METHOD
+              value: openid
+            - name: ACTUAL_OPENID_DISCOVERY_URL
+              value: https://auth.armleth.fr/application/o/actual-budget/.well-known/openid-configuration
+            - name: ACTUAL_OPENID_CLIENT_ID
+              value: actual-budget
+            - name: ACTUAL_OPENID_SERVER_HOSTNAME
+              value: https://finances.armleth.fr
+            - name: ACTUAL_TRUSTED_PROXIES
+              value: loopback,linklocal,uniquelocal
+          envFrom:
+            - secretRef:
+                name: actual-budget-oidc
           volumeMounts:
             - name: data
               mountPath: /data

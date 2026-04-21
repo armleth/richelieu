@@ -19,7 +19,7 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **Code Server** (OIDC-protected VS Code in the browser -- dev.armleth.fr)
 - **Lathibandolaise** (test + prod deployments with CNPG Postgres, ForwardAuth via Authentik -- test.lathibandolaise.dev.armleth.fr / prod.lathibandolaise.dev.armleth.fr)
 - **DbGate** (OIDC-protected database browser for the Lathibandolaise PostgreSQL cluster -- db.lathibandolaise.dev.armleth.fr)
-- **Actual Budget** (OIDC-protected self-hosted personal finance manager, admin-only -- finances.armleth.fr)
+- **Actual Budget** (self-hosted personal finance manager with native OIDC against Authentik, admin-only -- finances.armleth.fr)
 - **Terraform** (Vault and Authentik configuration as code)
 
 ## Repository structure
@@ -97,11 +97,12 @@ k8s/
       external-secret.yaml                  # DB connection secret (reuses secret/lathibandolaise)
       service.yaml                          # DbGate Service (port 3000)
       ingress.yaml                          # IngressRoute for db.lathibandolaise.dev.armleth.fr (ForwardAuth via Authentik)
-    actual-budget/                          # Actual Budget personal finance manager (finances.armleth.fr, admin-only ForwardAuth)
+    actual-budget/                          # Actual Budget personal finance manager (finances.armleth.fr, native OIDC via Authentik)
+      external-secret.yaml                  # OIDC client secret (ExternalSecret from Vault: secret/actual-budget:oidc-client-secret)
       pvc.yaml                              # 10Gi PVC for SQLite DB + budget files (/data)
-      deployment.yaml                       # Actual Budget (actualbudget/actual-server:latest, port 5006)
+      deployment.yaml                       # Actual Budget (actualbudget/actual-server:latest, port 5006, ACTUAL_LOGIN_METHOD=openid)
       service.yaml                          # Actual Budget Service (port 5006)
-      ingress.yaml                          # IngressRoute for finances.armleth.fr (ForwardAuth via Authentik)
+      ingress.yaml                          # IngressRoute for finances.armleth.fr (plain HTTPS, no ForwardAuth)
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
   authentik/                                # Groups, OIDC providers, proxy providers (incl. Lathibandolaise), applications, policy bindings
@@ -274,14 +275,21 @@ terraform apply
 # Store OIDC client secrets in Vault
 ARGOCD_CLIENT_SECRET=$(terraform output -raw argocd_client_secret)
 VAULT_CLIENT_SECRET=$(terraform output -raw vault_client_secret)
+ACTUAL_BUDGET_CLIENT_SECRET=$(terraform output -raw actual_budget_client_secret)
 cd ../..
 
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv put secret/argocd oidc-client-secret="$ARGOCD_CLIENT_SECRET"
 
-# Verify the secret was stored correctly
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  ACTUAL_BUDGET_CLIENT_SECRET="$ACTUAL_BUDGET_CLIENT_SECRET" \
+  sh -c 'vault kv put secret/actual-budget oidc-client-secret="$ACTUAL_BUDGET_CLIENT_SECRET"'
+
+# Verify the secrets were stored correctly
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv get -field=oidc-client-secret secret/argocd
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv get -field=oidc-client-secret secret/actual-budget
 
 cd terraform/vault
 terraform apply -var="vault_oidc_client_secret=$VAULT_CLIENT_SECRET"
@@ -486,7 +494,7 @@ DbGate is a web-based database browser at `https://db.lathibandolaise.dev.armlet
 
 ## Actual Budget
 
-Actual Budget is a self-hosted personal finance manager at `https://finances.armleth.fr`, deployed in the `actual-budget` namespace. It uses its bundled SQLite database (no CNPG cluster), persisted on a 10Gi RWO PVC mounted at `/data`. Authentication is handled entirely by Authentik ForwardAuth -- only users in the `admin` group can access it. No Vault secrets are required; Actual Budget's own server password is left unset since ForwardAuth is the sole authentication layer.
+Actual Budget is a self-hosted personal finance manager at `https://finances.armleth.fr`, deployed in the `actual-budget` namespace. It uses its bundled SQLite database (no CNPG cluster), persisted on a 10Gi RWO PVC mounted at `/data`. Authentication uses Actual Budget's native OpenID Connect integration against Authentik (`ACTUAL_LOGIN_METHOD=openid`); only users in the `admin` group are allowed by the Authentik application policy. The OIDC client secret is stored in Vault at `secret/actual-budget:oidc-client-secret` and surfaced to the pod via the `actual-budget-oidc` ExternalSecret. The Authentik application's redirect URI is `https://finances.armleth.fr/openid/callback`.
 
 ## Jellyfin hardware acceleration
 

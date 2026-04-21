@@ -5,6 +5,7 @@ kind: Kustomization
 namespace: actual-budget
 
 resources:
+  - external-secret.yaml
   - pvc.yaml
   - deployment.yaml
   - service.yaml

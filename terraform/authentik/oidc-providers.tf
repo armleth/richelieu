@@ -99,3 +99,44 @@ output "vault_client_secret" {
   value     = authentik_provider_oauth2.vault.client_secret
   sensitive = true
 }
+
+# --- Actual Budget OIDC (admin group only) ---
+
+resource "authentik_provider_oauth2" "actual_budget" {
+  name               = "Actual Budget"
+  authorization_flow = data.authentik_flow.default_authorization.id
+  invalidation_flow  = data.authentik_flow.default_invalidation.id
+  client_id          = "actual-budget"
+  signing_key        = data.authentik_certificate_key_pair.default.id
+
+  allowed_redirect_uris = [
+    {
+      matching_mode = "strict"
+      url           = "https://finances.${local.domain}/openid/callback"
+    },
+  ]
+
+  property_mappings = [
+    data.authentik_property_mapping_provider_scope.openid.id,
+    data.authentik_property_mapping_provider_scope.profile.id,
+    data.authentik_property_mapping_provider_scope.email.id,
+    authentik_property_mapping_provider_scope.groups.id,
+  ]
+}
+
+resource "authentik_application" "actual_budget" {
+  name              = "Actual Budget"
+  slug              = "actual-budget"
+  protocol_provider = authentik_provider_oauth2.actual_budget.id
+}
+
+resource "authentik_policy_binding" "actual_budget_admin" {
+  target = authentik_application.actual_budget.uuid
+  group  = authentik_group.admin.id
+  order  = 0
+}
+
+output "actual_budget_client_secret" {
+  value     = authentik_provider_oauth2.actual_budget.client_secret
+  sensitive = true
+}

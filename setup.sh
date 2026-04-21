@@ -483,6 +483,7 @@ step_authentik_terraform() {
 
     argocd_client_secret=$(cd terraform/authentik && terraform output -raw argocd_client_secret)
     vault_client_secret=$(cd terraform/authentik && terraform output -raw vault_client_secret)
+    actual_budget_client_secret=$(cd terraform/authentik && terraform output -raw actual_budget_client_secret)
 
     kill_port_forward "$authentik_pf_pid"
 
@@ -498,6 +499,14 @@ step_authentik_terraform() {
     kubectl exec -n vault vault-0 \
         -- env VAULT_TOKEN="$VAULT_TOKEN" \
         vault kv get -field=oidc-client-secret secret/argocd >/dev/null
+
+    kubectl exec -n vault vault-0 \
+        -- env VAULT_TOKEN="$VAULT_TOKEN" ACTUAL_BUDGET_CLIENT_SECRET="$actual_budget_client_secret" \
+        sh -c 'vault kv put secret/actual-budget oidc-client-secret="$ACTUAL_BUDGET_CLIENT_SECRET"'
+
+    kubectl exec -n vault vault-0 \
+        -- env VAULT_TOKEN="$VAULT_TOKEN" \
+        vault kv get -field=oidc-client-secret secret/actual-budget >/dev/null
 
     log "  re-applying terraform/vault with the Authentik OIDC client secret"
     (
