@@ -18,3 +18,4 @@ resources:
   - code-server.yaml
   - lathibandolaise.yaml
   - dbgate.yaml
+  - actual-budget.yaml

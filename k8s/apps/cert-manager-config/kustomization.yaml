@@ -19,3 +19,4 @@ resources:
   - certificates/lathibandolaise-test.yaml
   - certificates/lathibandolaise-prod.yaml
   - certificates/dbgate.yaml
+  - certificates/actual-budget.yaml

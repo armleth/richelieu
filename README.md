@@ -12,13 +12,14 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
 - **CloudNativePG** (PostgreSQL operator -- manages Authentik's, Nextcloud's, and Lathibandolaise's databases)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
-- **Authentik** (centralized OIDC + proxy authentication for ArgoCD, Vault, Homepage, Bbox, Code Server, Lathibandolaise, DbGate, and media stack)
+- **Authentik** (centralized OIDC + proxy authentication for ArgoCD, Vault, Homepage, Bbox, Code Server, Lathibandolaise, DbGate, Actual Budget, and media stack)
 - **Media stack** (Jellyfin, Radarr, Sonarr, Prowlarr, FlareSolverr, qBittorrent, Flood)
 - **Nextcloud** (file sync & sharing with Redis caching and PostgreSQL backend)
 - **Homepage** (OIDC-protected dashboard with per-service resource monitoring -- home.armleth.fr)
 - **Code Server** (OIDC-protected VS Code in the browser -- dev.armleth.fr)
 - **Lathibandolaise** (test + prod deployments with CNPG Postgres, ForwardAuth via Authentik -- test.lathibandolaise.dev.armleth.fr / prod.lathibandolaise.dev.armleth.fr)
 - **DbGate** (OIDC-protected database browser for the Lathibandolaise PostgreSQL cluster -- db.lathibandolaise.dev.armleth.fr)
+- **Actual Budget** (OIDC-protected self-hosted personal finance manager, admin-only -- finances.armleth.fr)
 - **Terraform** (Vault and Authentik configuration as code)
 
 ## Repository structure
@@ -96,6 +97,11 @@ k8s/
       external-secret.yaml                  # DB connection secret (reuses secret/lathibandolaise)
       service.yaml                          # DbGate Service (port 3000)
       ingress.yaml                          # IngressRoute for db.lathibandolaise.dev.armleth.fr (ForwardAuth via Authentik)
+    actual-budget/                          # Actual Budget personal finance manager (finances.armleth.fr, admin-only ForwardAuth)
+      pvc.yaml                              # 10Gi PVC for SQLite DB + budget files (/data)
+      deployment.yaml                       # Actual Budget (actualbudget/actual-server:latest, port 5006)
+      service.yaml                          # Actual Budget Service (port 5006)
+      ingress.yaml                          # IngressRoute for finances.armleth.fr (ForwardAuth via Authentik)
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
   authentik/                                # Groups, OIDC providers, proxy providers (incl. Lathibandolaise), applications, policy bindings
@@ -294,11 +300,12 @@ Log in to `https://auth.armleth.fr` using a recovery link (see step 9).
   - `admin` -- full access (all services)
   - `bbox` -- Bbox access for non-admins
   - `dev` -- Code Server, Lathibandolaise (test/prod), DbGate
+  - (Actual Budget is admin-only; no dedicated group)
   - `media` -- Radarr, Sonarr, Prowlarr, qBittorrent, Flood
 
   Groups are managed declaratively in `terraform/authentik/groups.tf`; only user creation and assignment is done via the UI.
 
-You can then log into ArgoCD, Vault, Bbox, Homepage, Code Server, Lathibandolaise, DbGate, and the media stack via the **Authentik** SSO option.
+You can then log into ArgoCD, Vault, Bbox, Homepage, Code Server, Lathibandolaise, DbGate, Actual Budget, and the media stack via the **Authentik** SSO option.
 
 ## Adding a TLS certificate
 
@@ -476,6 +483,10 @@ vault kv put secret/lathibandolaise \
 ## DbGate
 
 DbGate is a web-based database browser at `https://db.lathibandolaise.dev.armleth.fr`, deployed in the `lathibandolaise` namespace. It connects to the `lathibandolaise-pg-rw` CNPG service and reuses `secret/lathibandolaise:db-password` (surfaced via the `dbgate-app-secret` ExternalSecret). Authentication is handled by Authentik ForwardAuth -- users in the `admin` or `dev` group can access it.
+
+## Actual Budget
+
+Actual Budget is a self-hosted personal finance manager at `https://finances.armleth.fr`, deployed in the `actual-budget` namespace. It uses its bundled SQLite database (no CNPG cluster), persisted on a 10Gi RWO PVC mounted at `/data`. Authentication is handled entirely by Authentik ForwardAuth -- only users in the `admin` group can access it. No Vault secrets are required; Actual Budget's own server password is left unset since ForwardAuth is the sole authentication layer.
 
 ## Jellyfin hardware acceleration
 

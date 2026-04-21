@@ -123,6 +123,13 @@ data:
             namespace: bbox
             app: bbox-proxy
             podSelector: "app=bbox-proxy"
+        - Actual Budget:
+            icon: actual.png
+            href: https://finances.armleth.fr
+            description: Personal finance manager
+            namespace: actual-budget
+            app: actual-budget
+            podSelector: "app=actual-budget"
 
     - Dev:
         - Code Server:

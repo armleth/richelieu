@@ -294,6 +294,28 @@ resource "authentik_policy_binding" "dbgate_dev" {
   order  = 1
 }
 
+# --- Actual Budget (admin group only) ---
+
+resource "authentik_provider_proxy" "actual_budget" {
+  name               = "Actual Budget"
+  authorization_flow = data.authentik_flow.default_authorization.id
+  invalidation_flow  = data.authentik_flow.default_invalidation.id
+  external_host      = "https://finances.${local.domain}"
+  mode               = "forward_single"
+}
+
+resource "authentik_application" "actual_budget" {
+  name              = "Actual Budget"
+  slug              = "actual-budget"
+  protocol_provider = authentik_provider_proxy.actual_budget.id
+}
+
+resource "authentik_policy_binding" "actual_budget_admin" {
+  target = authentik_application.actual_budget.uuid
+  group  = authentik_group.admin.id
+  order  = 0
+}
+
 # --- Embedded Outpost (serves /outpost.goauthentik.io/auth/traefik) ---
 
 resource "authentik_outpost" "embedded" {
@@ -310,5 +332,6 @@ resource "authentik_outpost" "embedded" {
     authentik_provider_proxy.lathibandolaise_test.id,
     authentik_provider_proxy.lathibandolaise_prod.id,
     authentik_provider_proxy.dbgate.id,
+    authentik_provider_proxy.actual_budget.id,
   ]
 }

@@ -539,7 +539,7 @@ Manual follow-ups (cannot be automated):
 
     SSO is then available for ArgoCD, Vault, Bbox, Homepage, Code Server,
     Lathibandolaise test/prod, DbGate (db.lathibandolaise.dev.armleth.fr),
-    and the media stack.
+    Actual Budget (finances.armleth.fr, admin-only), and the media stack.
 
  2. Log in to ArgoCD (https://argocd.armleth.fr) via Authentik SSO
     and verify every Application syncs Healthy.
