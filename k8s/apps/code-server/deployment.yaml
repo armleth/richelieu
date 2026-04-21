@@ -41,6 +41,8 @@ spec:
                   "https://oauth2:${TOKEN}@github.com/armleth/lathibandolaise.git" \
                   /workspace/lathibandolaise
               fi
+              git -C /workspace/lathibandolaise remote set-url origin \
+                https://github.com/armleth/lathibandolaise.git
               cat > /home/coder/.gitconfig <<'GITCONFIG'
               [user]
                   name = armleth
