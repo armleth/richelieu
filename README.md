@@ -71,6 +71,7 @@ k8s/
       service.yaml                          # Homepage Service
       ingress.yaml                          # IngressRoute for home.armleth.fr (ForwardAuth via Authentik)
     code-server/                            # VS Code in the browser (dev.armleth.fr, OIDC-protected)
+      external-secret.yaml                  # git PAT secret (ExternalSecret from Vault)
       deployment.yaml                       # code-server (codercom/code-server)
       service.yaml                          # code-server Service
       ingress.yaml                          # IngressRoute for dev.armleth.fr (ForwardAuth via Authentik)
@@ -84,9 +85,9 @@ k8s/
       ingress.yaml                          # IngressRoute for nextcloud.armleth.fr
     lathibandolaise/                        # Test + prod app (ForwardAuth via Authentik)
       postgres.yaml                         # CloudNativePG Cluster + DB credentials (ExternalSecret)
-      external-secret.yaml                  # App secret (DATABASE_URL) + GHCR pull secret
+      external-secret.yaml                  # App secret (DATABASE_URL) + GHCR pull secret + git PAT secret
       deployment-test.yaml                  # Test env (php:8.3-cli-alpine, hostPath /data/lathibandolaise)
-      deployment-prod.yaml                  # Prod env (ghcr.io/armleth/lathibandolaise:latest)
+      deployment-prod.yaml                  # Prod env (php:8.3-cli-alpine, in-cluster clone via git PAT)
       service-test.yaml                     # Test Service (port 3000)
       service-prod.yaml                     # Prod Service (port 3000)
       ingress.yaml                          # IngressRoutes for test/prod subdomains
@@ -215,7 +216,8 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" sh -c '
     db-password="$(openssl rand -base64 24)"
   vault kv put secret/lathibandolaise \
     db-password="$(openssl rand -base64 24)" \
-    ghcr-pat="<base64-encoded armleth:github-pat>"
+    ghcr-pat="<base64-encoded armleth:github-pat>" \
+    git-pat="<github-pat>"
 '
 ```
 
@@ -443,7 +445,7 @@ Homepage is a lightweight dashboard at `https://home.armleth.fr` showing all ser
 
 ## Code Server
 
-Code Server provides VS Code in the browser at `https://dev.armleth.fr`. It runs with `--auth=none` since all authentication is handled by Authentik ForwardAuth. Users in the `admin` or `dev` group can access the editor. A 5Gi PVC persists the `/home/coder` directory (workspace, extensions, settings) across restarts. The `/data/lathibandolaise` hostPath is mounted at `/home/coder/lathibandolaise` for shared access with the test deployment.
+Code Server provides VS Code in the browser at `https://dev.armleth.fr`. It runs with `--auth=none` since all authentication is handled by Authentik ForwardAuth. Users in the `admin` or `dev` group can access the editor. A 5Gi PVC persists the `/home/coder` directory (workspace, extensions, settings) across restarts. The `/data/lathibandolaise` hostPath is mounted at `/home/coder/lathibandolaise` for shared access with the test deployment; it is populated in-cluster by code-server's `git-bootstrap` init container on first boot using the Vault-stored `secret/lathibandolaise:git-pat`. The token is written to `~/.git-credentials` on the PVC (mode 0600) with `credential.helper=store`, so `git pull`/`commit`/`push` from the integrated terminal and the VS Code Source Control panel authenticate transparently. The token is never embedded in `git remote -v`.
 
 ## Lathibandolaise
 
@@ -451,8 +453,10 @@ Lathibandolaise runs in a single namespace with test and prod deployments, both 
 
 | Environment | URL | Image | Source |
 |---|---|---|---|
-| Test | `test.lathibandolaise.dev.armleth.fr` | `php:8.3-cli-alpine` (with `pdo_pgsql`) | hostPath `/data/lathibandolaise` |
-| Prod | `prod.lathibandolaise.dev.armleth.fr` | `ghcr.io/armleth/lathibandolaise:latest` | GHCR (private repo) |
+| Test | `test.lathibandolaise.dev.armleth.fr` | `php:8.3-cli-alpine` (with `pdo_pgsql`) | hostPath `/data/lathibandolaise` (shared with code-server) |
+| Prod | `prod.lathibandolaise.dev.armleth.fr` | `php:8.3-cli-alpine` (with `pdo_pgsql`) | in-cluster clone of `main`, re-cloned on every pod start |
+
+**Deploying to prod** = `kubectl -n lathibandolaise rollout restart deploy lathibandolaise-prod`. The `git-clone` init container wipes the emptyDir, does a `git clone --depth 1 --branch main` using the Vault-stored `git-pat`, then scrubs the token out of `.git/config` so the running container has no credentials at rest. Editing files in code-server does not affect prod until the changes are committed, pushed, and the prod deployment is restarted.
 
 ### Setup
 
@@ -461,18 +465,13 @@ Lathibandolaise runs in a single namespace with test and prod deployments, both 
 ```bash
 vault kv put secret/lathibandolaise \
   db-password="$(openssl rand -base64 24)" \
-  ghcr-pat="$(echo -n 'armleth:<github-pat>' | base64)"
+  ghcr-pat="$(echo -n 'armleth:<github-pat>' | base64)" \
+  git-pat="<github-pat>"
 ```
 
-2. Seed the test code on the K3s node (requires a GitHub-authorised SSH key on the node, or agent-forward from your workstation with `ssh -A`):
-
-```bash
-ssh armleth@<server> 'sudo git clone git@github.com:armleth/lathibandolaise.git /data/lathibandolaise'
-```
+2. Both test and prod working trees are cloned automatically once `secret/lathibandolaise:git-pat` is in Vault: code-server's init container populates the shared `/data/lathibandolaise` hostPath (seen by `lathibandolaise-test`), and the prod deployment's init container clones into its own emptyDir on every pod start.
 
 3. DNS: Add A/CNAME records for `test.lathibandolaise.dev.armleth.fr` and `prod.lathibandolaise.dev.armleth.fr`.
-
-4. Prod will work once `ghcr.io/armleth/lathibandolaise:latest` is pushed from the app repo.
 
 ## DbGate
 

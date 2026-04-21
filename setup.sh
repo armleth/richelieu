@@ -6,19 +6,21 @@
 # bootstrap to configuring Authentik and Vault via Terraform.
 #
 # Steps that truly cannot be automated (recovery-link login, API-token
-# creation in the Authentik UI, user/group creation, seeding the
-# Lathibandolaise repo via an SSH-authenticated git clone) pause the script
-# and prompt the operator to complete the action before continuing.
+# creation in the Authentik UI, user/group creation) pause the script and
+# prompt the operator to complete the action before continuing.
+#
+# Lathibandolaise working trees are populated in-cluster by init
+# containers using a GitHub PAT stored in Vault (see step 7); no SSH-agent
+# forwarded clone happens on the K3s node anymore.
 #
 # This script is designed to run from your workstation, not on the K3s
 # node itself. Every cluster operation goes through kubectl / port-forward,
 # so your workstation only needs network access to the API server on 6443.
 #
-# The only host-level operations are creating /data/media and cloning
-# /data/lathibandolaise on the node; those are performed over SSH when
-# the RICHELIEU_SSH_HOST environment variable is set (e.g.
-# "armleth@richelieu.lan"). Without it, the script prints the commands
-# to run manually on the node.
+# The only host-level operation is creating /data/media on the node; it
+# is performed over SSH when the RICHELIEU_SSH_HOST environment variable
+# is set (e.g. "armleth@richelieu.lan"). Without it, the script prints
+# the commands to run manually on the node.
 #
 # Usage:
 #   # kubectl already configured via ~/.kube/config pointing at the remote
@@ -324,6 +326,15 @@ step_seed_secrets() {
     local ghcr_b64
     ghcr_b64=$(printf 'armleth:%s' "$ghcr_pat" | base64 -w0)
 
+    printf '    A GitHub PAT is also required for in-cluster git operations\n'
+    printf '    (code-server clone/pull/push, prod deployment clone). Use a\n'
+    printf '    classic "repo" scope token or fine-grained with "Contents:\n'
+    printf '    Read and write" on armleth/lathibandolaise.\n'
+    local git_pat
+    read -r -s -p "    GitHub PAT for git operations (input hidden): " git_pat
+    echo
+    [[ -z "$git_pat" ]] && die "git PAT is required"
+
     # Generate random values on the workstation (openssl may not exist in
     # the Vault/OpenBao container image). Pass everything to the pod as env
     # vars so no secret ever appears on a command line.
@@ -347,6 +358,7 @@ step_seed_secrets() {
             NEXTCLOUD_DB_PASSWORD="$nextcloud_db_password" \
             LATHIBANDOLAISE_DB_PASSWORD="$lathibandolaise_db_password" \
             GHCR_B64="$ghcr_b64" \
+            LATHIBANDOLAISE_GIT_PAT="$git_pat" \
         sh -c '
             set -e
             vault kv put secret/authentik \
@@ -358,7 +370,8 @@ step_seed_secrets() {
                 db-password="$NEXTCLOUD_DB_PASSWORD"
             vault kv put secret/lathibandolaise \
                 db-password="$LATHIBANDOLAISE_DB_PASSWORD" \
-                ghcr-pat="$GHCR_B64"
+                ghcr-pat="$GHCR_B64" \
+                git-pat="$LATHIBANDOLAISE_GIT_PAT"
         '
 }
 
@@ -394,10 +407,10 @@ step_coredns_patch() {
 }
 
 ########################################
-# Step 9: host data directories (media + lathibandolaise)
+# Step 9: host data directories (media only)
 ########################################
 step_host_dirs() {
-    log "Step 9: host data directories on the K3s node"
+    log "Step 9: host data directories (media only)"
 
     if [[ -n "$SSH_HOST" ]]; then
         log "  using SSH target: $SSH_HOST"
@@ -406,41 +419,11 @@ step_host_dirs() {
         # when passwordless sudo isn't configured. Harmless otherwise.
         ssh -t "$SSH_HOST" 'sudo mkdir -p /data/media/movies /data/media/tv \
             && sudo chown 1000:1000 /data/media/movies /data/media/tv'
-
-        if ssh "$SSH_HOST" 'test -d /data/lathibandolaise/.git'; then
-            log "  /data/lathibandolaise already exists"
-        else
-            log "  cloning Lathibandolaise via SSH agent forwarding"
-            if [[ -z "${SSH_AUTH_SOCK:-}" ]] || ! ssh-add -l >/dev/null 2>&1; then
-                warn "No SSH agent / identity detected on this workstation."
-                warn "Start one and add your GitHub key before continuing, e.g.:"
-                warn "    eval \"\$(ssh-agent -s)\""
-                warn "    ssh-add ~/.ssh/id_ed25519"
-                pause "Press ENTER once your agent has the GitHub key loaded."
-            fi
-
-            # -A forwards the local SSH agent so git-over-SSH on the node can
-            # authenticate to GitHub with your workstation key (no key ever
-            # lands on the server). We pre-create the target directory owned
-            # by the SSH user so the clone doesn't need sudo (which would
-            # strip SSH_AUTH_SOCK).
-            ssh -A -t "$SSH_HOST" '
-                set -e
-                sudo mkdir -p /data/lathibandolaise
-                sudo chown "$(id -u):$(id -g)" /data/lathibandolaise
-                mkdir -p ~/.ssh
-                touch ~/.ssh/known_hosts
-                ssh-keyscan -H github.com 2>/dev/null >> ~/.ssh/known_hosts
-                sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
-                git clone git@github.com:armleth/lathibandolaise.git /data/lathibandolaise
-            '
-        fi
     else
         warn "RICHELIEU_SSH_HOST is not set; cannot run host-level commands."
         warn "Open another terminal, SSH into the K3s node, and run:"
         warn "    sudo mkdir -p /data/media/movies /data/media/tv"
         warn "    sudo chown 1000:1000 /data/media/movies /data/media/tv"
-        warn "    sudo git clone git@github.com:armleth/lathibandolaise.git /data/lathibandolaise"
         pause "Run the commands above on the K3s node, then press ENTER to continue."
     fi
 }

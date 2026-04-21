@@ -14,11 +14,31 @@ spec:
       labels:
         app: lathibandolaise-prod
     spec:
-      imagePullSecrets:
-        - name: lathibandolaise-ghcr-secret
+      initContainers:
+        - name: git-clone
+          image: alpine/git
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              TOKEN=$(cat /var/run/secrets/git/token)
+              rm -rf /code/* /code/.[!.]* 2>/dev/null || true
+              git clone --depth 1 --branch main \
+                "https://oauth2:${TOKEN}@github.com/armleth/lathibandolaise.git" /code
+              git -C /code remote set-url origin https://github.com/armleth/lathibandolaise.git
+              chown -R 1000:1000 /code
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: code
+              mountPath: /code
+            - name: git-secret
+              mountPath: /var/run/secrets/git
+              readOnly: true
       containers:
         - name: lathibandolaise-prod
-          image: ghcr.io/armleth/lathibandolaise:latest
+          image: php:8.3-cli-alpine
+          command: ["sh", "-c", "apk add --no-cache postgresql-dev && docker-php-ext-install pdo_pgsql && exec php -S 0.0.0.0:8080 -t /app/public"]
           ports:
             - containerPort: 8080
           envFrom:
@@ -30,3 +50,15 @@ spec:
               cpu: 50m
             limits:
               memory: 128Mi
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          emptyDir: {}
+        - name: git-secret
+          projected:
+            defaultMode: 0400
+            sources:
+              - secret:
+                  name: lathibandolaise-git-secret

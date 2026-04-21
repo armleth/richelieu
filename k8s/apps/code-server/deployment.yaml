@@ -29,16 +29,41 @@ spec:
         app: code-server
     spec:
       initContainers:
-        - name: fix-permissions
-          image: busybox
+        - name: git-bootstrap
+          image: alpine/git
           command: ["/bin/sh", "-c"]
           args:
-            - chown -R 1000:1000 /data
+            - |
+              set -e
+              chown -R 1000:1000 /workspace/lathibandolaise /home/coder
+              TOKEN=$(cat /var/run/secrets/git/token)
+              if [ ! -d /workspace/lathibandolaise/.git ]; then
+                su-exec 1000:1000 git clone \
+                  "https://oauth2:${TOKEN}@github.com/armleth/lathibandolaise.git" \
+                  /workspace/lathibandolaise
+              fi
+              cat > /home/coder/.gitconfig <<'GITCONFIG'
+              [user]
+                  name = armleth
+                  email = armleth@proton.me
+              [credential]
+                  helper = store
+              [init]
+                  defaultBranch = main
+              GITCONFIG
+              printf 'https://oauth2:%s@github.com\n' "$TOKEN" > /home/coder/.git-credentials
+              chmod 600 /home/coder/.git-credentials
+              chown 1000:1000 /home/coder/.gitconfig /home/coder/.git-credentials
           securityContext:
             runAsUser: 0
           volumeMounts:
             - name: lathibandolaise-code
-              mountPath: /data
+              mountPath: /workspace/lathibandolaise
+            - name: data
+              mountPath: /home/coder
+            - name: git-secret
+              mountPath: /var/run/secrets/git
+              readOnly: true
       containers:
         - name: code-server
           image: codercom/code-server:4.115.0
@@ -70,15 +95,6 @@ spec:
                 --bind-addr=0.0.0.0:8080 \
                 --disable-telemetry \
                 --disable-getting-started-override
-          env:
-            - name: GIT_AUTHOR_NAME
-              value: "armleth"
-            - name: GIT_AUTHOR_EMAIL
-              value: "armleth@proton.me"
-            - name: GIT_COMMITTER_NAME
-              value: "armleth"
-            - name: GIT_COMMITTER_EMAIL
-              value: "armleth@proton.me"
           ports:
             - containerPort: 8080
               name: http
@@ -117,3 +133,9 @@ spec:
           hostPath:
             path: /data/lathibandolaise
             type: DirectoryOrCreate
+        - name: git-secret
+          projected:
+            defaultMode: 0400
+            sources:
+              - secret:
+                  name: code-server-git-secret
