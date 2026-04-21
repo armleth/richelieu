@@ -147,7 +147,7 @@ data:
             app: lathibandolaise-prod
             podSelector: "app=lathibandolaise-prod"
         - DbGate:
-            icon: dbgate.png
+            icon: mdi-database
             href: https://db.lathibandolaise.dev.armleth.fr
             description: Database visualizer
             namespace: lathibandolaise
