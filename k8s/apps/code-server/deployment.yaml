@@ -35,10 +35,9 @@ spec:
           args:
             - |
               set -e
-              chown -R 1000:1000 /workspace/lathibandolaise /home/coder
               TOKEN=$(cat /var/run/secrets/git/token)
               if [ ! -d /workspace/lathibandolaise/.git ]; then
-                su-exec 1000:1000 git clone \
+                git clone \
                   "https://oauth2:${TOKEN}@github.com/armleth/lathibandolaise.git" \
                   /workspace/lathibandolaise
               fi
@@ -53,7 +52,7 @@ spec:
               GITCONFIG
               printf 'https://oauth2:%s@github.com\n' "$TOKEN" > /home/coder/.git-credentials
               chmod 600 /home/coder/.git-credentials
-              chown 1000:1000 /home/coder/.gitconfig /home/coder/.git-credentials
+              chown -R 1000:1000 /workspace/lathibandolaise /home/coder
           securityContext:
             runAsUser: 0
           volumeMounts:
