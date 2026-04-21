@@ -124,7 +124,7 @@ data:
             app: bbox-proxy
             podSelector: "app=bbox-proxy"
         - Actual Budget:
-            icon: actual.png
+            icon: actual-budget.png
             href: https://finances.armleth.fr
             description: Personal finance manager
             namespace: actual-budget
