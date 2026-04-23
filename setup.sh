@@ -376,10 +376,10 @@ step_seed_secrets() {
 }
 
 ########################################
-# Step 8: enable Traefik cross-namespace middleware
+# Step 8: configure Traefik (cross-namespace middleware + HTTP→HTTPS redirect)
 ########################################
-step_traefik_cross_namespace() {
-    log "Step 8: enabling Traefik cross-namespace middleware"
+step_traefik_config() {
+    log "Step 8: configuring Traefik (cross-namespace middleware + HTTP→HTTPS redirect)"
     kubectl apply -f - <<'EOF'
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
@@ -391,6 +391,10 @@ spec:
     providers:
       kubernetesCRD:
         allowCrossNamespace: true
+    additionalArguments:
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
 EOF
     log "  waiting for Traefik rollout"
     kubectl rollout status deployment/traefik -n kube-system --timeout=120s
@@ -587,7 +591,7 @@ ALL_STEPS=(
     step_vault_terraform
     step_verify_eso
     step_seed_secrets
-    step_traefik_cross_namespace
+    step_traefik_config
     step_coredns_patch
     step_host_dirs
     step_authentik_terraform

@@ -6,7 +6,7 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 
 ## Stack
 
-- **K3s** with Traefik ingress controller (cross-namespace middleware enabled via HelmChartConfig)
+- **K3s** with Traefik ingress controller (cross-namespace middleware + cluster-wide HTTP→HTTPS 301 redirect enabled via HelmChartConfig)
 - **ArgoCD v3.3.2** (self-managed via app-of-apps pattern)
 - **HashiCorp Vault** (secrets backend)
 - **External Secrets Operator** (syncs Vault secrets to Kubernetes)
@@ -228,9 +228,12 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" sh -c '
 '
 ```
 
-### 8. Enable Traefik cross-namespace middleware
+### 8. Configure Traefik
 
-Authentik's ForwardAuth middleware lives in the `authentik` namespace but is referenced by IngressRoutes in other namespaces. Traefik blocks this by default, so enable it:
+Two cluster-wide Traefik settings are applied together via a single `HelmChartConfig`:
+
+1. **Cross-namespace middleware.** Authentik's ForwardAuth middleware lives in the `authentik` namespace but is referenced by IngressRoutes in other namespaces — Traefik blocks this by default.
+2. **HTTP→HTTPS redirect.** An entrypoint-level 301 redirect sends every request arriving on port 80 to its HTTPS equivalent (same host, path, query). This is safe with Let's Encrypt's HTTP-01 challenge because the ACME client follows 3xx redirects and accepts any certificate on the redirect target.
 
 ```bash
 cat <<'EOF' | kubectl apply -f -
@@ -244,13 +247,25 @@ spec:
     providers:
       kubernetesCRD:
         allowCrossNamespace: true
+    additionalArguments:
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
 EOF
 ```
 
-K3s will automatically redeploy Traefik with the new setting. Wait for it:
+K3s will automatically redeploy Traefik with the new settings. Wait for it:
 
 ```bash
 kubectl rollout status deployment/traefik -n kube-system --timeout=120s
+```
+
+Verify the redirect with any host, e.g.:
+
+```bash
+curl -sI http://home.armleth.fr | head -n 2
+# HTTP/1.1 301 Moved Permanently
+# Location: https://home.armleth.fr/
 ```
 
 ### 9. Configure Authentik
