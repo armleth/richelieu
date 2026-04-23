@@ -68,6 +68,19 @@ This is a GitOps infrastructure repository for a single-node K3s cluster. ArgoCD
 - Path format: `secret/data/<service>/<key>`
 - Mount as Kubernetes Secret with consistent naming: `<service>-<purpose>-secret`
 
+### Authentik Integration (MANDATORY for any protected service)
+Any service whose IngressRoute references the `authentik-forward-auth` middleware, or that uses Authentik OIDC, MUST also be declared in Terraform — otherwise Authentik returns `Not Found` on the outpost path and the service is unreachable.
+
+Two files matter, both under `terraform/authentik/`:
+- **ForwardAuth services** → `proxy-providers.tf`:
+  1. Add `authentik_provider_proxy.<service>` with `external_host = "https://<host>.${local.domain}"` and `mode = "forward_single"`.
+  2. Add `authentik_application.<service>` pointing at that provider.
+  3. Add `authentik_policy_binding.<service>_<group>` for every group that should have access (mirror the closest sibling service).
+  4. **Append `authentik_provider_proxy.<service>.id` to the `authentik_outpost.embedded.protocol_providers` list at the bottom of the file.** The embedded outpost does NOT auto-attach — a provider that isn't in this list is invisible to Traefik's ForwardAuth call.
+- **OIDC services** → `oidc-providers.tf`: add `authentik_provider_oauth2` + `authentik_application` + bindings in the same pattern.
+
+After editing, run `terraform plan` / `terraform apply` from `terraform/authentik/` (see "Modifying Terraform Configs" below). This step is easy to forget because ArgoCD syncs the K8s side automatically but Terraform is manual.
+
 ### Documentation
 - Update README.md when adding new services or changing bootstrap steps
 - Update setup.sh when adding new services or changing bootstrap steps
@@ -95,10 +108,11 @@ This is a GitOps infrastructure repository for a single-node K3s cluster. ArgoCD
 2. Create manifests: deployment.yaml, service.yaml, ingress.yaml, kustomization.yaml
 3. If secrets needed: create ExternalSecret, ensure path exists in Vault
 4. Create certificate: `k8s/apps/cert-manager-config/certificates/<service>.yaml`
-5. Create ArgoCD Application: `k8s/apps/argocd/templates/<service>.yaml`
-6. Update kustomization.yaml files as needed
-7. Update the homepage configuration in `k8s/apps/homepage/configmap.yaml` to add the new service entry in the appropriate category
-8. Commit and push -- ArgoCD will sync automatically
+5. Create ArgoCD Application: `k8s/apps/argocd/templates/<service>.yaml` (skip if the service lives in a namespace whose ArgoCD Application already watches the parent directory — e.g. `media/`)
+6. **If the IngressRoute uses `authentik-forward-auth` or the service uses OIDC**: add the provider + application + policy bindings in `terraform/authentik/proxy-providers.tf` (or `oidc-providers.tf`), register the provider in `authentik_outpost.embedded.protocol_providers`, then `terraform plan` / `apply`. See "Authentik Integration" above. **This step is NEVER optional for protected services — skipping it gives a "Not Found" page from Authentik.**
+7. Update kustomization.yaml files as needed (parent `media/`, `cert-manager-config/`, etc.)
+8. Update the homepage configuration in `k8s/apps/homepage/configmap.yaml` to add the new service entry in the appropriate category
+9. Commit and push -- ArgoCD will sync the K8s side automatically (Authentik in step 6 is NOT synced by ArgoCD)
 
 ### Adding a Secret to Vault
 1. Port-forward to Vault: `kubectl port-forward -n vault svc/vault 8200:8200`
