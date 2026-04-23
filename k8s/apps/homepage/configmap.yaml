@@ -53,6 +53,13 @@ data:
             namespace: media
             app: sonarr
             podSelector: "app=sonarr"
+        - Bazarr:
+            icon: bazarr.png
+            href: https://subtitles.media.armleth.fr
+            description: Subtitle manager
+            namespace: media
+            app: bazarr
+            podSelector: "app=bazarr"
         - Prowlarr:
             icon: prowlarr.png
             href: https://trackers.media.armleth.fr

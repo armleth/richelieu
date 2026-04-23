@@ -70,6 +70,8 @@ This is a GitOps infrastructure repository for a single-node K3s cluster. ArgoCD
 
 ### Documentation
 - Update README.md when adding new services or changing bootstrap steps
+- Update setup.sh when adding new services or changing bootstrap steps
+- README.md and setup.sh MUST be kept in sync with every new implementation
 - Include kubectl wait commands for readiness checks
 - Document port-forward commands for local access
 - Explain manual steps that can't be automated

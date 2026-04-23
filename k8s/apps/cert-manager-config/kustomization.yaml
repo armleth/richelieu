@@ -13,6 +13,7 @@ resources:
   - certificates/prowlarr.yaml
   - certificates/qbittorrent.yaml
   - certificates/flood.yaml
+  - certificates/bazarr.yaml
   - certificates/homepage.yaml
   - certificates/code-server.yaml
   - certificates/authentik.yaml
