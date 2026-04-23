@@ -126,6 +126,34 @@ resource "authentik_policy_binding" "sonarr_media" {
   order  = 1
 }
 
+# --- Bazarr (admin + media groups) ---
+
+resource "authentik_provider_proxy" "bazarr" {
+  name               = "Bazarr"
+  authorization_flow = data.authentik_flow.default_authorization.id
+  invalidation_flow  = data.authentik_flow.default_invalidation.id
+  external_host      = "https://subtitles.media.${local.domain}"
+  mode               = "forward_single"
+}
+
+resource "authentik_application" "bazarr" {
+  name              = "Bazarr"
+  slug              = "bazarr"
+  protocol_provider = authentik_provider_proxy.bazarr.id
+}
+
+resource "authentik_policy_binding" "bazarr_admin" {
+  target = authentik_application.bazarr.uuid
+  group  = authentik_group.admin.id
+  order  = 0
+}
+
+resource "authentik_policy_binding" "bazarr_media" {
+  target = authentik_application.bazarr.uuid
+  group  = authentik_group.media.id
+  order  = 1
+}
+
 # --- Prowlarr (admin + media groups) ---
 
 resource "authentik_provider_proxy" "prowlarr" {
@@ -304,6 +332,7 @@ resource "authentik_outpost" "embedded" {
     authentik_provider_proxy.code_server.id,
     authentik_provider_proxy.radarr.id,
     authentik_provider_proxy.sonarr.id,
+    authentik_provider_proxy.bazarr.id,
     authentik_provider_proxy.prowlarr.id,
     authentik_provider_proxy.qbittorrent.id,
     authentik_provider_proxy.flood.id,
