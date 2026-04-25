@@ -63,7 +63,7 @@ data:
           "title": "Host power (RAPL PSYS)",
           "description": "Real-time power reported by Intel RAPL via Scaphandre. On Skylake+ Intel CPUs this is the PSYS domain, covering CPU package + DRAM + iGPU + uncore. Excludes PSU losses, fans, storage, NICs, motherboard VRMs.",
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+          "gridPos": {"h": 5, "w": 4, "x": 0, "y": 0},
           "id": 1,
           "options": {
             "colorMode": "value",
@@ -102,7 +102,7 @@ data:
           "title": "Sum of process power",
           "description": "Sum of per-process power attributions (scaph_process_power_consumption_microwatts). Per-process numbers are derived from the host RAPL reading proportionally to CPU usage, so this should track Host power closely.",
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0},
+          "gridPos": {"h": 5, "w": 4, "x": 4, "y": 0},
           "id": 2,
           "options": {
             "colorMode": "value",
@@ -141,7 +141,7 @@ data:
           "title": "Est. wall-plug power (x1.4)",
           "description": "Estimated AC power drawn at the wall socket. Computed as RAPL PSYS x 1.4 to account for PSU losses (80 PLUS Bronze/Silver typical efficiency ~85 %, factor ~1.18) and components outside PSYS (fans, NVMe, NICs, board VRMs, USB) which add roughly another ~20 %. Sources: Khan et al., 'How Much Power Does Your Server Consume? Estimating Wall Socket Power Using RAPL Measurements' (Springer 2016) and 'RAPL in Action' (ACM TOMPECS 2018); 80 PLUS efficiency program. Calibrate with a smart plug if you want a precise value for your hardware.",
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0},
+          "gridPos": {"h": 5, "w": 4, "x": 8, "y": 0},
           "id": 3,
           "options": {
             "colorMode": "value",
@@ -180,7 +180,7 @@ data:
           "title": "Est. daily energy at the wall",
           "description": "Average wall-plug power over the last 24 h, converted to Wh per day. Multiply by your EUR/kWh rate / 1000 to get the daily cost. Displayed in Wh because Grafana's kwatth unit auto-rescales sub-1 kWh values to Wh and would mix units across panels otherwise.",
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0},
+          "gridPos": {"h": 5, "w": 4, "x": 12, "y": 0},
           "id": 4,
           "options": {
             "colorMode": "value",
@@ -207,6 +207,78 @@ data:
             {
               "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24",
               "legendFormat": "Wh / day",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Est. daily cost",
+          "description": "Wall-plug energy over the last 24 h priced at 0.25 EUR / kWh. Edit the constant in the panel query to match your tariff.",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 5, "w": 4, "x": 16, "y": 0},
+          "id": 8,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyEUR",
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null}
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24 / 1000 * 0.25",
+              "legendFormat": "EUR / day",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Est. monthly cost",
+          "description": "Daily wall-plug cost projected over an average month (30.44 days = 365.25 / 12). Same 0.25 EUR / kWh assumption.",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 5, "w": 4, "x": 20, "y": 0},
+          "id": 9,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyEUR",
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null}
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24 / 1000 * 0.25 * 30.44",
+              "legendFormat": "EUR / month",
               "refId": "A"
             }
           ]
