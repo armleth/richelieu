@@ -13,9 +13,10 @@
             neofetch
             ripgrep
             fzf
-            eza 
+            eza
             dwt1-shell-color-scripts
             nixd
+            htop
         ];
     };
 
@@ -29,7 +30,7 @@
         bash = {
             enable = true;
             shellAliases = {
-                rebuild = "sudo nixos-rebuild switch --flake ~/tmp_infra/.";
+                rebuild = "sudo nixos-rebuild switch --flake ~/richelieu/.";
                 vim = "nvim";
                 gst = "git status";
                 ls = "eza --color=always --color-scale=all --color-scale-mode=gradient --icons=always --group-directories-first";
