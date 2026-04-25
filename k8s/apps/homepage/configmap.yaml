@@ -109,6 +109,8 @@ data:
             namespace: authentik
             app: authentik-server
             podSelector: "app=authentik-server"
+
+    - Services:
         - Homepage:
             icon: homepage.png
             href: https://home.armleth.fr
@@ -116,8 +118,6 @@ data:
             namespace: homepage
             app: homepage
             podSelector: "app=homepage"
-
-    - Services:
         - Nextcloud:
             icon: nextcloud.png
             href: https://nextcloud.armleth.fr
