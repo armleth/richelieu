@@ -91,7 +91,7 @@ data:
           },
           "targets": [
             {
-              "expr": "scaph_host_power_microwatts / 1e6",
+              "expr": "avg(scaph_host_power_microwatts) / 1e6",
               "legendFormat": "host",
               "refId": "A"
             }
@@ -130,7 +130,7 @@ data:
           },
           "targets": [
             {
-              "expr": "sum(scaph_process_power_consumption_microwatts) / 1e6",
+              "expr": "sum(avg by (pid) (scaph_process_power_consumption_microwatts)) / 1e6",
               "legendFormat": "all processes",
               "refId": "A"
             }
@@ -169,7 +169,7 @@ data:
           },
           "targets": [
             {
-              "expr": "scaph_host_power_microwatts / 1e6 * 1.4",
+              "expr": "avg(scaph_host_power_microwatts) / 1e6 * 1.4",
               "legendFormat": "wall-plug est.",
               "refId": "A"
             }
@@ -178,7 +178,7 @@ data:
         {
           "type": "stat",
           "title": "Est. daily energy at the wall",
-          "description": "Average wall-plug power over the last 24 h converted to kWh. Useful for estimating monthly cost: kWh * EUR-per-kWh.",
+          "description": "Average wall-plug power over the last 24 h, converted to Wh per day. Multiply by your EUR/kWh rate / 1000 to get the daily cost. Displayed in Wh because Grafana's kwatth unit auto-rescales sub-1 kWh values to Wh and would mix units across panels otherwise.",
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0},
           "id": 4,
@@ -192,8 +192,8 @@ data:
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "kwatth",
-              "decimals": 2,
+              "unit": "watth",
+              "decimals": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -205,8 +205,8 @@ data:
           },
           "targets": [
             {
-              "expr": "avg_over_time(scaph_host_power_microwatts[24h]) / 1e6 * 1.4 * 24 / 1000",
-              "legendFormat": "kWh / day",
+              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24",
+              "legendFormat": "Wh / day",
               "refId": "A"
             }
           ]
@@ -237,17 +237,17 @@ data:
           },
           "targets": [
             {
-              "expr": "scaph_host_power_microwatts / 1e6",
+              "expr": "avg(scaph_host_power_microwatts) / 1e6",
               "legendFormat": "host (RAPL PSYS)",
               "refId": "A"
             },
             {
-              "expr": "sum(scaph_process_power_consumption_microwatts) / 1e6",
+              "expr": "sum(avg by (pid) (scaph_process_power_consumption_microwatts)) / 1e6",
               "legendFormat": "sum of processes",
               "refId": "B"
             },
             {
-              "expr": "scaph_host_power_microwatts / 1e6 * 1.4",
+              "expr": "avg(scaph_host_power_microwatts) / 1e6 * 1.4",
               "legendFormat": "wall-plug est. (x1.4)",
               "refId": "C"
             }
@@ -280,32 +280,32 @@ data:
           },
           "targets": [
             {
-              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*k3s.*\"}) / 1e6",
+              "expr": "sum(avg by (pid) (scaph_process_power_consumption_microwatts{cmdline=~\".*k3s.*\"})) / 1e6",
               "legendFormat": "k3s (control plane + kubelet)",
               "refId": "A"
             },
             {
-              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*prometheus.*\",cmdline!~\".*operator.*\"}) / 1e6",
+              "expr": "sum(avg by (pid) (scaph_process_power_consumption_microwatts{cmdline=~\".*prometheus.*\",cmdline!~\".*operator.*\"})) / 1e6",
               "legendFormat": "prometheus",
               "refId": "B"
             },
             {
-              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*grafana.*\"}) / 1e6",
+              "expr": "sum(avg by (pid) (scaph_process_power_consumption_microwatts{cmdline=~\".*grafana.*\"})) / 1e6",
               "legendFormat": "grafana",
               "refId": "C"
             },
             {
-              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*scaphandre.*\"}) / 1e6",
+              "expr": "sum(avg by (pid) (scaph_process_power_consumption_microwatts{cmdline=~\".*scaphandre.*\"})) / 1e6",
               "legendFormat": "scaphandre",
               "refId": "D"
             },
             {
-              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*containerd.*\"}) / 1e6",
+              "expr": "sum(avg by (pid) (scaph_process_power_consumption_microwatts{cmdline=~\".*containerd.*\"})) / 1e6",
               "legendFormat": "containerd",
               "refId": "E"
             },
             {
-              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*postgres.*\"}) / 1e6",
+              "expr": "sum(avg by (pid) (scaph_process_power_consumption_microwatts{cmdline=~\".*postgres.*\"})) / 1e6",
               "legendFormat": "postgres",
               "refId": "F"
             }
@@ -341,7 +341,7 @@ data:
           },
           "targets": [
             {
-              "expr": "topk(20, scaph_process_power_consumption_microwatts) / 1e6",
+              "expr": "topk(20, avg by (pid, cmdline, exe) (scaph_process_power_consumption_microwatts)) / 1e6",
               "format": "table",
               "instant": true,
               "refId": "A"
