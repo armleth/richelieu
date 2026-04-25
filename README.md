@@ -571,21 +571,33 @@ kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:909
 - Kubernetes / Compute Resources / Cluster (kube-state-metrics) -- bundled
 - ArgoCD -- ID `14584`
 - Blackbox Exporter -- ID `7587`
-- Kubernetes power usage using Scaphandre -- ID `13845` (auto-imported via Grafana Helm values)
+- **Energy / Power consumption** -- bundled in this repo at `k8s/apps/monitoring-config/dashboard-energy.yaml`, auto-loaded by the Grafana sidecar (ConfigMap labeled `grafana_dashboard: "1"`). Replaces the upstream community dashboard `13845`, which depends on `exe=` exact-match labels (`exe="prometheus"`, `exe=~"etcd|kube-apiserver|..."`) that never match on NixOS (where `exe` is a `/nix/store/<hash>-<name>/bin/<name>` path) or on K3s (where the whole control plane is one `k3s server` process).
 
 **Energy / cost tracking.** Scaphandre runs as a DaemonSet and reads CPU power directly from RAPL counters. Key metrics:
 
-- `scaph_host_power_microwatts` -- total host power draw (uW)
+- `scaph_host_power_microwatts` -- total host power draw (uW), from RAPL PSYS on Skylake+ Intel
 - `scaph_process_power_consumption_microwatts{exe, cmdline, pid}` -- per-process attribution
 
-To turn watts into euros, build a Grafana panel with PromQL like (replace `0.20` by your `EUR/kWh` rate):
+The bundled dashboard exposes:
+
+- **Host power (RAPL PSYS)** -- live host reading, in W.
+- **Sum of process power** -- `sum(scaph_process_power_consumption_microwatts) / 1e6`, should track the host reading.
+- **Est. wall-plug power (x1.4)** -- RAPL PSYS multiplied by 1.4 to model PSU losses + components outside PSYS (fans, NVMe, NICs, board VRMs). The 1.4 factor combines (a) ~85 % typical 80 PLUS Bronze/Silver PSU efficiency (~1.18x) and (b) ~15-20 % additional draw from non-PSYS components, consistent with Khan et al., "How Much Power Does Your Server Consume? Estimating Wall Socket Power Using RAPL Measurements" (Springer, 2016) and "RAPL in Action" (ACM TOMPECS, 2018), which establish a strong but offset-bearing correlation between RAPL and wall-socket power. Calibrate against a smart plug for higher accuracy.
+- **Est. daily energy at the wall** -- `avg_over_time(scaph_host_power_microwatts[24h]) * 1.4 * 24 / 1000 / 1e6` in kWh; multiply by your `EUR/kWh` to get monthly cost.
+- Per-component power (k3s, prometheus, grafana, scaphandre, containerd, postgres) using `cmdline=~`-style regex.
+- Top processes by current power.
+
+Cost example (replace `0.20` by your `EUR/kWh` rate):
 
 ```promql
-# Energy used over the dashboard time range, in kWh
+# Energy used over the dashboard time range, in kWh (host RAPL only)
 sum_over_time(scaph_host_power_microwatts[$__range]) / 1e6 / 3600 / 1000
 
-# Cost over the dashboard time range, in EUR (rate = 0.20 EUR/kWh)
-sum_over_time(scaph_host_power_microwatts[$__range]) / 1e6 / 3600 / 1000 * 0.20
+# Same, scaled to estimated wall-plug consumption
+sum_over_time(scaph_host_power_microwatts[$__range]) / 1e6 / 3600 / 1000 * 1.4
+
+# Estimated wall-plug cost over the range, EUR
+sum_over_time(scaph_host_power_microwatts[$__range]) / 1e6 / 3600 / 1000 * 1.4 * 0.20
 ```
 
 RAPL requires CPU support (Intel since Sandy Bridge / AMD since Zen). Scaphandre runs privileged to read MSRs.

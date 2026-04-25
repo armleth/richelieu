@@ -7,3 +7,4 @@ resources:
   - ingressroute-grafana.yaml
   - servicemonitor-argocd.yaml
   - probes.yaml
+  - dashboard-energy.yaml

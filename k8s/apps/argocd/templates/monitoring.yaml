@@ -90,24 +90,6 @@ spec:
               cpu: 25m
             limits:
               memory: 192Mi
-          dashboardProviders:
-            dashboardproviders.yaml:
-              apiVersion: 1
-              providers:
-                - name: default
-                  orgId: 1
-                  folder: ""
-                  type: file
-                  disableDeletion: false
-                  editable: true
-                  options:
-                    path: /var/lib/grafana/dashboards/default
-          dashboards:
-            default:
-              scaphandre:
-                gnetId: 13845
-                revision: 1
-                datasource: Prometheus
           envValueFrom:
             GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
               secretKeyRef:

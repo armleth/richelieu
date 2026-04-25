@@ -1,0 +1,361 @@
+---
+# Custom Grafana dashboard for Scaphandre power metrics.
+#
+# We do NOT use the upstream community dashboard (Grafana ID 13845) because
+# it is built around `exe=` exact-match labels (e.g. exe="prometheus",
+# exe="grafana-server", exe=~"etcd|kube-apiserver|...") which do not match
+# our NixOS / K3s reality:
+#   - On NixOS, `exe` is /nix/store/<hash>-<name>/bin/<name>, never the bare
+#     binary name.
+#   - K3s ships kube-apiserver, kube-controller-manager, kube-scheduler,
+#     kubelet, kube-proxy and (embedded) etcd as a single `k3s server`
+#     process, so `etcd|kube-apiserver|...` never matches.
+# This dashboard uses `cmdline=~`-style regex matches instead, and converts
+# the raw `*_microwatts` counters to watts for human-readable units.
+#
+# The "Estimated wall-plug power" panel applies a 1.4x multiplier to the
+# RAPL PSYS reading. PSYS already covers CPU package + DRAM + iGPU +
+# uncore on Skylake-and-later Intel platforms, but does NOT cover PSU
+# losses, fans, NVMe, NICs, USB, or the motherboard VRMs. The multiplier
+# is built from two sourced components:
+#   - Khan et al. (2016/2018) "How Much Power Does Your Server Consume?
+#     Estimating Wall Socket Power Using RAPL Measurements" / "RAPL in
+#     Action" - establishes that RAPL strongly correlates with wall-socket
+#     power but systematically underestimates it, with a roughly linear
+#     model y = a*x + b. Reported error vs. wall socket is in the 5-15 %
+#     range once a small platform-specific offset is added.
+#   - 80 PLUS PSU efficiency: a typical 80 PLUS Bronze/Silver desktop or
+#     small-server PSU runs at ~82-88 % efficiency at typical (10-50 %)
+#     load, so wall power = DC power / ~0.85 ~= DC * 1.18.
+# Combined: 1.18 (PSU) * ~1.18 (peripherals/board not in PSYS) ~= 1.4.
+# Adjust the `* 1.4` factor in the panel query if you measure your own
+# wall-plug draw with a smart plug and want to calibrate.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-energy
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  energy.json: |
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "liveNow": false,
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": ["energy", "scaphandre"],
+      "templating": {"list": []},
+      "time": {"from": "now-3h", "to": "now"},
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Energy / Power consumption",
+      "uid": "richelieu-energy",
+      "version": 1,
+      "weekStart": "",
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Host power (RAPL PSYS)",
+          "description": "Real-time power reported by Intel RAPL via Scaphandre. On Skylake+ Intel CPUs this is the PSYS domain, covering CPU package + DRAM + iGPU + uncore. Excludes PSU losses, fans, storage, NICs, motherboard VRMs.",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+          "id": 1,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 30},
+                  {"color": "orange", "value": 60},
+                  {"color": "red", "value": 100}
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "scaph_host_power_microwatts / 1e6",
+              "legendFormat": "host",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Sum of process power",
+          "description": "Sum of per-process power attributions (scaph_process_power_consumption_microwatts). Per-process numbers are derived from the host RAPL reading proportionally to CPU usage, so this should track Host power closely.",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0},
+          "id": 2,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 30},
+                  {"color": "orange", "value": 60},
+                  {"color": "red", "value": 100}
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum(scaph_process_power_consumption_microwatts) / 1e6",
+              "legendFormat": "all processes",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Est. wall-plug power (x1.4)",
+          "description": "Estimated AC power drawn at the wall socket. Computed as RAPL PSYS x 1.4 to account for PSU losses (80 PLUS Bronze/Silver typical efficiency ~85 %, factor ~1.18) and components outside PSYS (fans, NVMe, NICs, board VRMs, USB) which add roughly another ~20 %. Sources: Khan et al., 'How Much Power Does Your Server Consume? Estimating Wall Socket Power Using RAPL Measurements' (Springer 2016) and 'RAPL in Action' (ACM TOMPECS 2018); 80 PLUS efficiency program. Calibrate with a smart plug if you want a precise value for your hardware.",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0},
+          "id": 3,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 50},
+                  {"color": "orange", "value": 100},
+                  {"color": "red", "value": 150}
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "scaph_host_power_microwatts / 1e6 * 1.4",
+              "legendFormat": "wall-plug est.",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Est. daily energy at the wall",
+          "description": "Average wall-plug power over the last 24 h converted to kWh. Useful for estimating monthly cost: kWh * EUR-per-kWh.",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0},
+          "id": 4,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "kwatth",
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null}
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "avg_over_time(scaph_host_power_microwatts[24h]) / 1e6 * 1.4 * 24 / 1000",
+              "legendFormat": "kWh / day",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Power over time",
+          "description": "Host RAPL power, sum of per-process attribution, and estimated wall-plug power.",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 9, "w": 24, "x": 0, "y": 5},
+          "id": 5,
+          "options": {
+            "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"]},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "decimals": 2,
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "scaph_host_power_microwatts / 1e6",
+              "legendFormat": "host (RAPL PSYS)",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(scaph_process_power_consumption_microwatts) / 1e6",
+              "legendFormat": "sum of processes",
+              "refId": "B"
+            },
+            {
+              "expr": "scaph_host_power_microwatts / 1e6 * 1.4",
+              "legendFormat": "wall-plug est. (x1.4)",
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Power by component",
+          "description": "Per-component power, summed by cmdline regex. Uses cmdline= rather than exe= so it works on NixOS (where exe is a /nix/store path) and on K3s (where the whole control plane is one process).",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 9, "w": 24, "x": 0, "y": 14},
+          "id": 6,
+          "options": {
+            "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"]},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "decimals": 3,
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "stacking": {"mode": "normal", "group": "A"}
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*k3s.*\"}) / 1e6",
+              "legendFormat": "k3s (control plane + kubelet)",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*prometheus.*\",cmdline!~\".*operator.*\"}) / 1e6",
+              "legendFormat": "prometheus",
+              "refId": "B"
+            },
+            {
+              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*grafana.*\"}) / 1e6",
+              "legendFormat": "grafana",
+              "refId": "C"
+            },
+            {
+              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*scaphandre.*\"}) / 1e6",
+              "legendFormat": "scaphandre",
+              "refId": "D"
+            },
+            {
+              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*containerd.*\"}) / 1e6",
+              "legendFormat": "containerd",
+              "refId": "E"
+            },
+            {
+              "expr": "sum(scaph_process_power_consumption_microwatts{cmdline=~\".*postgres.*\"}) / 1e6",
+              "legendFormat": "postgres",
+              "refId": "F"
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Top processes by power",
+          "description": "Top 20 processes by current power attribution. cmdline is shown because exe is a nix-store path on NixOS.",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 12, "w": 24, "x": 0, "y": 23},
+          "id": 7,
+          "options": {
+            "showHeader": true,
+            "footer": {"show": false}
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "decimals": 3,
+              "custom": {"align": "auto"}
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "cmdline"},
+                "properties": [{"id": "custom.width", "value": 700}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Value"},
+                "properties": [{"id": "displayName", "value": "Power (W)"}]
+              }
+            ]
+          },
+          "targets": [
+            {
+              "expr": "topk(20, scaph_process_power_consumption_microwatts) / 1e6",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true, "namespace": true, "pod": true, "container": true, "service": true, "exe": true},
+                "indexByName": {"pid": 0, "cmdline": 1, "Value": 2}
+              }
+            }
+          ]
+        }
+      ]
+    }
