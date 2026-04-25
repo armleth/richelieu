@@ -47,7 +47,7 @@
             settings = {
                 PasswordAuthentication = true;
                 AllowUsers = null;
-                UseDns = true;
+                UseDns = false;
                 X11Forwarding = false;
                 PermitRootLogin = "prohibit-password";
             };
