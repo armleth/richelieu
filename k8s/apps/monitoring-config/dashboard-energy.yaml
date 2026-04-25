@@ -214,7 +214,7 @@ data:
         {
           "type": "stat",
           "title": "Est. daily cost",
-          "description": "Wall-plug energy over the last 24 h priced at 0.25 EUR / kWh. Edit the constant in the panel query to match your tariff.",
+          "description": "Wall-plug energy over the last 24 h priced at 0.20 EUR / kWh (TTC). Edit the constant in the panel query to match your tariff.",
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 5, "w": 4, "x": 16, "y": 0},
           "id": 8,
@@ -241,7 +241,7 @@ data:
           },
           "targets": [
             {
-              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24 / 1000 * 0.25",
+              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24 / 1000 * 0.20",
               "legendFormat": "EUR / day",
               "refId": "A"
             }
@@ -250,7 +250,7 @@ data:
         {
           "type": "stat",
           "title": "Est. monthly cost",
-          "description": "Daily wall-plug cost projected over an average month (30.44 days = 365.25 / 12). Same 0.25 EUR / kWh assumption.",
+          "description": "Daily wall-plug cost projected over an average month (30.44 days = 365.25 / 12). Same 0.20 EUR / kWh (TTC) assumption.",
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 5, "w": 4, "x": 20, "y": 0},
           "id": 9,
@@ -277,7 +277,7 @@ data:
           },
           "targets": [
             {
-              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24 / 1000 * 0.25 * 30.44",
+              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24 / 1000 * 0.20 * 30.44",
               "legendFormat": "EUR / month",
               "refId": "A"
             }
