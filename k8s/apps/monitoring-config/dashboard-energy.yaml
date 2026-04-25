@@ -13,7 +13,7 @@
 # This dashboard uses `cmdline=~`-style regex matches instead, and converts
 # the raw `*_microwatts` counters to watts for human-readable units.
 #
-# The "Estimated wall-plug power" panel applies a 1.4x multiplier to the
+# The "Estimated wall-plug power" panel applies a 1.6x multiplier to the
 # RAPL PSYS reading. PSYS already covers CPU package + DRAM + iGPU +
 # uncore on Skylake-and-later Intel platforms, but does NOT cover PSU
 # losses, fans, NVMe, NICs, USB, or the motherboard VRMs. The multiplier
@@ -26,10 +26,15 @@
 #     range once a small platform-specific offset is added.
 #   - 80 PLUS PSU efficiency: a typical 80 PLUS Bronze/Silver desktop or
 #     small-server PSU runs at ~82-88 % efficiency at typical (10-50 %)
-#     load, so wall power = DC power / ~0.85 ~= DC * 1.18.
-# Combined: 1.18 (PSU) * ~1.18 (peripherals/board not in PSYS) ~= 1.4.
-# Adjust the `* 1.4` factor in the panel query if you measure your own
-# wall-plug draw with a smart plug and want to calibrate.
+#     load, but at sub-20 % load (our regime, ~10 W out of a 180 W PSU)
+#     efficiency drops to ~70-77 %, so wall power = DC / ~0.75 ~= DC * 1.33.
+# Combined: 1.33 (PSU at low load) * ~1.20 (peripherals/board not in PSYS:
+# NVMe ~1-1.5 W, fans ~1 W, NIC PHY ~0.5 W, board logic + VRM losses
+# ~1.5-2 W) ~= 1.6.
+# This is a placeholder pending an actual wall-plug measurement (kill-a-watt
+# style meter). Once measured at idle and under load, replace this scalar
+# multiplier with an affine model: wall = PSYS / eta + C.
+# Adjust the `* 1.6` factor in the panel query if you calibrate.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -138,8 +143,8 @@ data:
         },
         {
           "type": "stat",
-          "title": "Est. wall-plug power (x1.4)",
-          "description": "Estimated AC power drawn at the wall socket. Computed as RAPL PSYS x 1.4 to account for PSU losses (80 PLUS Bronze/Silver typical efficiency ~85 %, factor ~1.18) and components outside PSYS (fans, NVMe, NICs, board VRMs, USB) which add roughly another ~20 %. Sources: Khan et al., 'How Much Power Does Your Server Consume? Estimating Wall Socket Power Using RAPL Measurements' (Springer 2016) and 'RAPL in Action' (ACM TOMPECS 2018); 80 PLUS efficiency program. Calibrate with a smart plug if you want a precise value for your hardware.",
+          "title": "Est. wall-plug power (x1.6)",
+          "description": "Estimated AC power drawn at the wall socket. Computed as RAPL PSYS x 1.6 to account for PSU losses (HP SFF stock PSU at sub-20 % load runs ~70-77 % efficiency, factor ~1.33) and components outside PSYS (NVMe Gen4 ~1-1.5 W, fans ~1 W, NIC PHY ~0.5 W, board logic + VRM losses ~1.5-2 W) which add roughly another ~20 %. Combined: 1.33 x 1.20 ~= 1.6. Sources: Khan et al., 'How Much Power Does Your Server Consume? Estimating Wall Socket Power Using RAPL Measurements' (Springer 2016) and 'RAPL in Action' (ACM TOMPECS 2018); 80 PLUS efficiency program. Placeholder pending a real kill-a-watt measurement; once measured replace with the affine model wall = PSYS / eta + C.",
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 5, "w": 4, "x": 8, "y": 0},
           "id": 3,
@@ -169,7 +174,7 @@ data:
           },
           "targets": [
             {
-              "expr": "avg(scaph_host_power_microwatts) / 1e6 * 1.4",
+              "expr": "avg(scaph_host_power_microwatts) / 1e6 * 1.6",
               "legendFormat": "wall-plug est.",
               "refId": "A"
             }
@@ -205,7 +210,7 @@ data:
           },
           "targets": [
             {
-              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24",
+              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.6 * 24",
               "legendFormat": "Wh / day",
               "refId": "A"
             }
@@ -241,7 +246,7 @@ data:
           },
           "targets": [
             {
-              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24 / 1000 * 0.20",
+              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.6 * 24 / 1000 * 0.20",
               "legendFormat": "EUR / day",
               "refId": "A"
             }
@@ -277,7 +282,7 @@ data:
           },
           "targets": [
             {
-              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.4 * 24 / 1000 * 0.20 * 30.44",
+              "expr": "avg(avg_over_time(scaph_host_power_microwatts[24h])) / 1e6 * 1.6 * 24 / 1000 * 0.20 * 30.44",
               "legendFormat": "EUR / month",
               "refId": "A"
             }
@@ -319,8 +324,8 @@ data:
               "refId": "B"
             },
             {
-              "expr": "avg(scaph_host_power_microwatts) / 1e6 * 1.4",
-              "legendFormat": "wall-plug est. (x1.4)",
+              "expr": "avg(scaph_host_power_microwatts) / 1e6 * 1.6",
+              "legendFormat": "wall-plug est. (x1.6)",
               "refId": "C"
             }
           ]
