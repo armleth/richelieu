@@ -110,6 +110,9 @@ k8s/
       ingressroute-grafana.yaml             # IngressRoute for metrics.armleth.fr (Grafana, native OIDC inside the app)
       servicemonitor-argocd.yaml            # ServiceMonitor for ArgoCD metrics services
       probes.yaml                           # Three blackbox Probe CRs (open / protected / media)
+      dashboard-energy.yaml                 # Custom Grafana dashboard ConfigMap (auto-loaded by sidecar via grafana_dashboard=1 label)
+  charts/
+    scaphandre/                             # Vendored copy of hubblo-org/scaphandre v1.0.2 Helm chart with policy/v1beta1 PSP removed (deleted from K8s 1.25). See chart README for rationale and bump procedure.
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
   authentik/                                # Groups, OIDC providers, proxy providers (incl. Lathibandolaise), applications, policy bindings
@@ -601,6 +604,14 @@ sum_over_time(scaph_host_power_microwatts[$__range]) / 1e6 / 3600 / 1000 * 1.4 *
 ```
 
 RAPL requires CPU support (Intel since Sandy Bridge / AMD since Zen). Scaphandre runs privileged to read MSRs.
+
+**Host prerequisite (NixOS).** The host kernel must expose RAPL via `/sys/class/powercap/intel-rapl`. On NixOS this means loading the appropriate modules in `configuration.nix`:
+
+```nix
+boot.kernelModules = [ "intel_rapl_common" "intel_rapl_msr" ];
+```
+
+Without this, the Scaphandre pod runs but every `scaph_*_microwatts` metric reports `0`. After editing `configuration.nix`, run `sudo nixos-rebuild switch` and the pod will start producing real readings on its next scrape.
 
 ## Jellyfin hardware acceleration
 
