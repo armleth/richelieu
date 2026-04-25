@@ -110,6 +110,15 @@ data:
             app: authentik-server
             podSelector: "app=authentik-server"
 
+    - Observability:
+        - Grafana:
+            icon: grafana.png
+            href: https://metrics.armleth.fr
+            description: Metrics & dashboards
+            namespace: monitoring
+            app: grafana
+            podSelector: "app.kubernetes.io/name=grafana"
+
     - Services:
         - Homepage:
             icon: homepage.png

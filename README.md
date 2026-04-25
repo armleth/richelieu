@@ -348,7 +348,7 @@ Log in to `https://auth.armleth.fr` using a recovery link (see step 9).
 
   Groups are managed declaratively in `terraform/authentik/groups.tf`; only user creation and assignment is done via the UI.
 
-You can then log into ArgoCD, Vault, Bbox, Homepage, Code Server, Lathibandolaise, DbGate, Actual Budget, and the media stack via the **Authentik** SSO option.
+You can then log into ArgoCD, Vault, Bbox, Homepage, Code Server, Lathibandolaise, DbGate, Actual Budget, Grafana, and the media stack via the **Authentik** SSO option.
 
 ## Adding a TLS certificate
 
