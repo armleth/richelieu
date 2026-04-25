@@ -199,19 +199,16 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/hubblo-org/scaphandre.git
-    targetRevision: v1.0.2
-    path: helm/scaphandre
+    # Local fork of upstream chart https://github.com/hubblo-org/scaphandre.git
+    # at tag v1.0.2 with the deprecated PodSecurityPolicy (policy/v1beta1)
+    # removed, since it was deleted from Kubernetes in 1.25 and is not
+    # available in K3s 1.31. Helm's compiled-in scheme always reports
+    # `policy/v1beta1` as available, so the chart's API-gated PSP template
+    # cannot be skipped via Helm flags alone.
+    repoURL: https://github.com/armleth/richelieu.git
+    targetRevision: HEAD
+    path: k8s/charts/scaphandre
     helm:
-      # Restrict the API versions Helm sees so that the chart's
-      # `Capabilities.APIVersions.Has "policy/v1beta1"` gate is false
-      # and the deprecated PodSecurityPolicy template is not rendered
-      # (PSP was removed in Kubernetes 1.25 and K3s 1.31 no longer has it).
-      apiVersions:
-        - v1
-        - apps/v1
-        - rbac.authorization.k8s.io/v1
-        - monitoring.coreos.com/v1
       values: |
         image:
           name: hubblo/scaphandre
