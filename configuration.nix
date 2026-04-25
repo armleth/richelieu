@@ -10,6 +10,10 @@
     boot.loader.systemd-boot.enable = true;
     boot.loader.efi.canTouchEfiVariables = true;
 
+    # Enable Intel RAPL so /sys/class/powercap/intel-rapl/ is exposed,
+    # which Scaphandre reads to report electrical power consumption.
+    boot.kernelModules = [ "intel_rapl_common" "intel_rapl_msr" ];
+
     networking.hostName = "nixosVM";
     networking.networkmanager.enable = true;
 
