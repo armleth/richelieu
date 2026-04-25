@@ -219,6 +219,14 @@ spec:
             cpu: 25m
           limits:
             memory: 128Mi
+        # Required for Scaphandre to read RAPL counters: container runtimes
+        # expose a filtered sysfs view that hides /sys/devices/virtual/powercap
+        # from non-privileged pods, so the symlinks under /sys/class/powercap
+        # dangle and every power metric reads as 0. Privileged is the
+        # standard pattern for power/hardware exporters (node-exporter,
+        # cAdvisor, ipmi-exporter all do the same).
+        securityContext:
+          privileged: true
         serviceMonitor:
           enabled: true
           interval: 60s
