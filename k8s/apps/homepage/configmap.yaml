@@ -109,8 +109,6 @@ data:
             namespace: authentik
             app: authentik-server
             podSelector: "app=authentik-server"
-
-    - Observability:
         - Grafana:
             icon: grafana.png
             href: https://metrics.armleth.fr
