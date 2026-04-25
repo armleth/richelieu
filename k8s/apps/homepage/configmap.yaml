@@ -109,13 +109,6 @@ data:
             namespace: authentik
             app: authentik-server
             podSelector: "app=authentik-server"
-        - Nextcloud:
-            icon: nextcloud.png
-            href: https://nextcloud.armleth.fr
-            description: File sync & sharing
-            namespace: nextcloud
-            app: nextcloud
-            podSelector: "app=nextcloud"
         - Homepage:
             icon: homepage.png
             href: https://home.armleth.fr
@@ -123,6 +116,15 @@ data:
             namespace: homepage
             app: homepage
             podSelector: "app=homepage"
+
+    - Services:
+        - Nextcloud:
+            icon: nextcloud.png
+            href: https://nextcloud.armleth.fr
+            description: File sync & sharing
+            namespace: nextcloud
+            app: nextcloud
+            podSelector: "app=nextcloud"
         - Bbox:
             icon: router.png
             href: https://bbox.armleth.fr
