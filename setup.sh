@@ -391,6 +391,10 @@ spec:
     providers:
       kubernetesCRD:
         allowCrossNamespace: true
+    ports:
+      websecure:
+        port: 443
+        exposedPort: 443
     additionalArguments:
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"

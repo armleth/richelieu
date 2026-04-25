@@ -247,6 +247,10 @@ spec:
     providers:
       kubernetesCRD:
         allowCrossNamespace: true
+    ports:
+      websecure:
+        port: 443
+        exposedPort: 443
     additionalArguments:
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
@@ -264,9 +268,11 @@ Verify the redirect with any host, e.g.:
 
 ```bash
 curl -sI http://home.armleth.fr | head -n 2
-# HTTP/1.1 301 Moved Permanently
+# HTTP/1.1 308 Permanent Redirect
 # Location: https://home.armleth.fr/
 ```
+
+Note: the `ports.websecure.port: 443` override is required because the K3s Traefik chart defaults to `:8443` internally (host port 443 → container 8443 via the Service). Traefik's entrypoint redirection uses the target entrypoint's port verbatim in the `Location` header, so without the override every redirect would land on `https://<host>:8443/`. Setting the entrypoint to `:443` makes the port match HTTPS's default and Traefik omits it from the URL.
 
 ### 9. Configure Authentik
 
