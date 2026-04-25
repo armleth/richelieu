@@ -54,6 +54,13 @@ spec:
         - mountPath: /sys/class/powercap
           name: powercap
           readOnly: false
+        # /sys/class/powercap/intel-rapl is a symlink into
+        # /sys/devices/virtual/powercap, so the real energy_uj files
+        # are only reachable when that directory is also bind-mounted.
+        # Without this mount Scaphandre returns 0 for every power metric.
+        - mountPath: /sys/devices/virtual/powercap
+          name: powercap-devices
+          readOnly: false
       securityContext:
         runAsUser: {{ .Values.securityContext.userID }}
         runAsGroup: {{ .Values.securityContext.userGroup }}
@@ -70,3 +77,7 @@ spec:
           path: /sys/class/powercap
           type: "Directory"
         name: powercap
+      - hostPath:
+          path: /sys/devices/virtual/powercap
+          type: "Directory"
+        name: powercap-devices
