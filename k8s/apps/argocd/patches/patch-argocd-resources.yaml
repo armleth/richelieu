@@ -54,10 +54,10 @@ spec:
               value: "2"
           resources:
             requests:
-              memory: 64Mi
+              memory: 128Mi
               cpu: 25m
             limits:
-              memory: 192Mi
+              memory: 512Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
