@@ -19,3 +19,5 @@ resources:
   - lathibandolaise.yaml
   - dbgate.yaml
   - actual-budget.yaml
+  - monitoring.yaml
+  - monitoring-config.yaml

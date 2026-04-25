@@ -1,0 +1,63 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: blackbox-public-open
+  namespace: monitoring
+spec:
+  jobName: blackbox-public-open
+  interval: 60s
+  module: http_2xx
+  prober:
+    url: prometheus-blackbox-exporter:9115
+  targets:
+    staticConfig:
+      static:
+        - https://auth.armleth.fr
+        - https://vault.armleth.fr
+        - https://argocd.armleth.fr
+        - https://nextcloud.armleth.fr
+        - https://finances.armleth.fr
+        - https://metrics.armleth.fr
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: blackbox-public-protected
+  namespace: monitoring
+spec:
+  jobName: blackbox-public-protected
+  interval: 60s
+  module: http_2xx_or_3xx
+  prober:
+    url: prometheus-blackbox-exporter:9115
+  targets:
+    staticConfig:
+      static:
+        - https://home.armleth.fr
+        - https://dev.armleth.fr
+        - https://bbox.armleth.fr
+        - https://db.lathibandolaise.dev.armleth.fr
+        - https://prod.lathibandolaise.dev.armleth.fr
+        - https://test.lathibandolaise.dev.armleth.fr
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: blackbox-public-media
+  namespace: monitoring
+spec:
+  jobName: blackbox-public-media
+  interval: 60s
+  module: http_2xx_or_3xx
+  prober:
+    url: prometheus-blackbox-exporter:9115
+  targets:
+    staticConfig:
+      static:
+        - https://movies.media.armleth.fr
+        - https://series.media.armleth.fr
+        - https://subtitles.media.armleth.fr
+        - https://trackers.media.armleth.fr
+        - https://torrents.media.armleth.fr
+        - https://downloads.media.armleth.fr

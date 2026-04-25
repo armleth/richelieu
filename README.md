@@ -20,6 +20,7 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **Lathibandolaise** (test + prod deployments with CNPG Postgres, ForwardAuth via Authentik -- test.lathibandolaise.dev.armleth.fr / prod.lathibandolaise.dev.armleth.fr)
 - **DbGate** (OIDC-protected database browser for the Lathibandolaise PostgreSQL cluster -- db.lathibandolaise.dev.armleth.fr)
 - **Actual Budget** (self-hosted personal finance manager with native OIDC against Authentik, admin-only -- finances.armleth.fr)
+- **Monitoring** (kube-prometheus-stack + prometheus-blackbox-exporter; Grafana with native OIDC against Authentik, admin-only -- metrics.armleth.fr)
 - **Terraform** (Vault and Authentik configuration as code)
 
 ## Repository structure
@@ -103,6 +104,12 @@ k8s/
       deployment.yaml                       # Actual Budget (actualbudget/actual-server:latest, port 5006, ACTUAL_LOGIN_METHOD=openid)
       service.yaml                          # Actual Budget Service (port 5006)
       ingress.yaml                          # IngressRoute for finances.armleth.fr (plain HTTPS, no ForwardAuth)
+    monitoring-config/                      # Local CRs for the monitoring stack (namespace: monitoring)
+      namespace.yaml                        # monitoring Namespace
+      external-secret.yaml                  # Grafana OIDC client secret (ExternalSecret from Vault: secret/grafana:oidc-client-secret)
+      ingressroute-grafana.yaml             # IngressRoute for metrics.armleth.fr (Grafana, native OIDC inside the app)
+      servicemonitor-argocd.yaml            # ServiceMonitor for ArgoCD metrics services
+      probes.yaml                           # Three blackbox Probe CRs (open / protected / media)
 terraform/
   vault/                                    # KV v2, K8s auth, ESO role, admin policy, OIDC auth
   authentik/                                # Groups, OIDC providers, proxy providers (incl. Lathibandolaise), applications, policy bindings
@@ -297,6 +304,7 @@ terraform apply
 ARGOCD_CLIENT_SECRET=$(terraform output -raw argocd_client_secret)
 VAULT_CLIENT_SECRET=$(terraform output -raw vault_client_secret)
 ACTUAL_BUDGET_CLIENT_SECRET=$(terraform output -raw actual_budget_client_secret)
+GRAFANA_CLIENT_SECRET=$(terraform output -raw grafana_client_secret)
 cd ../..
 
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
@@ -306,11 +314,17 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   ACTUAL_BUDGET_CLIENT_SECRET="$ACTUAL_BUDGET_CLIENT_SECRET" \
   sh -c 'vault kv put secret/actual-budget oidc-client-secret="$ACTUAL_BUDGET_CLIENT_SECRET"'
 
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  GRAFANA_CLIENT_SECRET="$GRAFANA_CLIENT_SECRET" \
+  sh -c 'vault kv put secret/grafana oidc-client-secret="$GRAFANA_CLIENT_SECRET"'
+
 # Verify the secrets were stored correctly
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv get -field=oidc-client-secret secret/argocd
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv get -field=oidc-client-secret secret/actual-budget
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv get -field=oidc-client-secret secret/grafana
 
 cd terraform/vault
 terraform apply -var="vault_oidc_client_secret=$VAULT_CLIENT_SECRET"
@@ -516,6 +530,46 @@ DbGate is a web-based database browser at `https://db.lathibandolaise.dev.armlet
 ## Actual Budget
 
 Actual Budget is a self-hosted personal finance manager at `https://finances.armleth.fr`, deployed in the `actual-budget` namespace. It uses its bundled SQLite database (no CNPG cluster), persisted on a 10Gi RWO PVC mounted at `/data`. Authentication uses Actual Budget's native OpenID Connect integration against Authentik (`ACTUAL_LOGIN_METHOD=openid`); only users in the `admin` group are allowed by the Authentik application policy. The OIDC client secret is stored in Vault at `secret/actual-budget:oidc-client-secret` and surfaced to the pod via the `actual-budget-oidc` ExternalSecret. The Authentik application's redirect URI is `https://finances.armleth.fr/openid/callback`.
+
+## Monitoring
+
+A lightweight observability stack runs in the `monitoring` namespace, deployed as two Helm-based ArgoCD Applications (`kube-prometheus-stack`, `prometheus-blackbox-exporter`) plus a sibling Kustomize app (`monitoring-config`) that holds the local CRs (Namespace, ExternalSecret, IngressRoute, ServiceMonitor, Probes).
+
+| Component | Purpose |
+|---|---|
+| Prometheus | Metrics database, 7d retention, 5Gi PVC, internal-only (no ingress) |
+| Grafana | Visualization at `metrics.armleth.fr`, 1Gi PVC, native OIDC against Authentik (admin-only) |
+| node-exporter | Host CPU / memory / disk / network metrics |
+| kube-state-metrics | Kubernetes object state metrics |
+| prometheus-blackbox-exporter | HTTP uptime probing of public services |
+
+Alertmanager and the K3s-incompatible scrape targets (`kubeControllerManager`, `kubeScheduler`, `kubeProxy`, `kubeEtcd`) are disabled.
+
+**OIDC bootstrap** (covered by `setup.sh` step 10, but if redoing manually):
+
+```bash
+GRAFANA_CLIENT_SECRET=$(cd terraform/authentik && terraform output -raw grafana_client_secret)
+
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  GRAFANA_CLIENT_SECRET="$GRAFANA_CLIENT_SECRET" \
+  sh -c 'vault kv put secret/grafana oidc-client-secret="$GRAFANA_CLIENT_SECRET"'
+```
+
+**Authentication.** Grafana uses the OIDC `generic_oauth` provider (not Traefik ForwardAuth -- the IngressRoute therefore has no `authentik-forward-auth` middleware). The Authentik application is bound to the `admin` group; the `role_attribute_path` JMESPath expression `contains(groups[*], 'admin') && 'Admin' || 'Viewer'` maps `admin`-group members to Grafana's `Admin` role and any other authenticated user to `Viewer`.
+
+**Prometheus access.** Prometheus has no ingress. To reach the UI:
+
+```bash
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090
+# then open http://localhost:9090/targets
+```
+
+**Recommended dashboards** (Grafana > Dashboards > Import):
+
+- Node Exporter Full -- ID `1860`
+- Kubernetes / Compute Resources / Cluster (kube-state-metrics) -- bundled
+- ArgoCD -- ID `14584`
+- Blackbox Exporter -- ID `7587`
 
 ## Jellyfin hardware acceleration
 

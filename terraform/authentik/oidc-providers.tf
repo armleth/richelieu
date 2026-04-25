@@ -140,3 +140,44 @@ output "actual_budget_client_secret" {
   value     = authentik_provider_oauth2.actual_budget.client_secret
   sensitive = true
 }
+
+# --- Grafana OIDC (admin group) ---
+
+resource "authentik_provider_oauth2" "grafana" {
+  name               = "Grafana"
+  authorization_flow = data.authentik_flow.default_authorization.id
+  invalidation_flow  = data.authentik_flow.default_invalidation.id
+  client_id          = "grafana"
+  signing_key        = data.authentik_certificate_key_pair.default.id
+
+  allowed_redirect_uris = [
+    {
+      matching_mode = "strict"
+      url           = "https://metrics.${local.domain}/login/generic_oauth"
+    },
+  ]
+
+  property_mappings = [
+    data.authentik_property_mapping_provider_scope.openid.id,
+    data.authentik_property_mapping_provider_scope.profile.id,
+    data.authentik_property_mapping_provider_scope.email.id,
+    authentik_property_mapping_provider_scope.groups.id,
+  ]
+}
+
+resource "authentik_application" "grafana" {
+  name              = "Grafana"
+  slug              = "grafana"
+  protocol_provider = authentik_provider_oauth2.grafana.id
+}
+
+resource "authentik_policy_binding" "grafana_admin" {
+  target = authentik_application.grafana.uuid
+  group  = authentik_group.admin.id
+  order  = 0
+}
+
+output "grafana_client_secret" {
+  value     = authentik_provider_oauth2.grafana.client_secret
+  sensitive = true
+}
