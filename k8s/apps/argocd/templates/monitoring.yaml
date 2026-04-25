@@ -90,6 +90,24 @@ spec:
               cpu: 25m
             limits:
               memory: 192Mi
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+                - name: default
+                  orgId: 1
+                  folder: ""
+                  type: file
+                  disableDeletion: false
+                  editable: true
+                  options:
+                    path: /var/lib/grafana/dashboards/default
+          dashboards:
+            default:
+              scaphandre:
+                gnetId: 13845
+                revision: 1
+                datasource: Prometheus
           envValueFrom:
             GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
               secretKeyRef:
@@ -158,6 +176,46 @@ spec:
               http:
                 preferred_ip_protocol: ip4
                 valid_status_codes: [200, 301, 302, 401, 403]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: scaphandre
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hubblo-org/scaphandre.git
+    targetRevision: v1.0.2
+    path: helm/scaphandre
+    helm:
+      values: |
+        image:
+          name: hubblo/scaphandre
+          tag: "1.0.2"
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 25m
+          limits:
+            memory: 128Mi
+        serviceMonitor:
+          enabled: true
+          interval: 60s
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

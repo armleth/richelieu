@@ -533,7 +533,7 @@ Actual Budget is a self-hosted personal finance manager at `https://finances.arm
 
 ## Monitoring
 
-A lightweight observability stack runs in the `monitoring` namespace, deployed as two Helm-based ArgoCD Applications (`kube-prometheus-stack`, `prometheus-blackbox-exporter`) plus a sibling Kustomize app (`monitoring-config`) that holds the local CRs (Namespace, ExternalSecret, IngressRoute, ServiceMonitor, Probes).
+A lightweight observability stack runs in the `monitoring` namespace, deployed as three Helm-based ArgoCD Applications (`kube-prometheus-stack`, `prometheus-blackbox-exporter`, `scaphandre`) plus a sibling Kustomize app (`monitoring-config`) that holds the local CRs (Namespace, ExternalSecret, IngressRoute, ServiceMonitor, Probes).
 
 | Component | Purpose |
 |---|---|
@@ -542,6 +542,7 @@ A lightweight observability stack runs in the `monitoring` namespace, deployed a
 | node-exporter | Host CPU / memory / disk / network metrics |
 | kube-state-metrics | Kubernetes object state metrics |
 | prometheus-blackbox-exporter | HTTP uptime probing of public services |
+| scaphandre | Host / per-process electrical power consumption (Intel/AMD RAPL) for energy-cost tracking |
 
 Alertmanager and the K3s-incompatible scrape targets (`kubeControllerManager`, `kubeScheduler`, `kubeProxy`, `kubeEtcd`) are disabled.
 
@@ -570,6 +571,24 @@ kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:909
 - Kubernetes / Compute Resources / Cluster (kube-state-metrics) -- bundled
 - ArgoCD -- ID `14584`
 - Blackbox Exporter -- ID `7587`
+- Kubernetes power usage using Scaphandre -- ID `13845` (auto-imported via Grafana Helm values)
+
+**Energy / cost tracking.** Scaphandre runs as a DaemonSet and reads CPU power directly from RAPL counters. Key metrics:
+
+- `scaph_host_power_microwatts` -- total host power draw (uW)
+- `scaph_process_power_consumption_microwatts{exe, cmdline, pid}` -- per-process attribution
+
+To turn watts into euros, build a Grafana panel with PromQL like (replace `0.20` by your `EUR/kWh` rate):
+
+```promql
+# Energy used over the dashboard time range, in kWh
+sum_over_time(scaph_host_power_microwatts[$__range]) / 1e6 / 3600 / 1000
+
+# Cost over the dashboard time range, in EUR (rate = 0.20 EUR/kWh)
+sum_over_time(scaph_host_power_microwatts[$__range]) / 1e6 / 3600 / 1000 * 0.20
+```
+
+RAPL requires CPU support (Intel since Sandy Bridge / AMD since Zen). Scaphandre runs privileged to read MSRs.
 
 ## Jellyfin hardware acceleration
 
