@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: unmanic-service
+  namespace: media
+spec:
+  selector:
+    app: unmanic
+  ports:
+    - protocol: TCP
+      port: 8888
+      targetPort: 8888

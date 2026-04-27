@@ -1,0 +1,78 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unmanic
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: unmanic
+  template:
+    metadata:
+      labels:
+        app: unmanic
+    spec:
+      containers:
+        - name: unmanic
+          image: josh5/unmanic:latest
+          securityContext:
+            privileged: true
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Europe/Paris"
+          ports:
+            - containerPort: 8888
+              name: http
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: library
+              mountPath: /library
+            - name: downloads
+              mountPath: /downloads
+            - name: cache
+              mountPath: /tmp/unmanic
+            - name: dri
+              mountPath: /dev/dri
+          readinessProbe:
+            httpGet:
+              path: /unmanic/ui/dashboard/
+              port: 8888
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8888
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: unmanic-config
+        - name: library
+          hostPath:
+            path: /data/media
+            type: DirectoryOrCreate
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: media-downloads
+        - name: cache
+          emptyDir:
+            sizeLimit: 50Gi
+        - name: dri
+          hostPath:
+            path: /dev/dri

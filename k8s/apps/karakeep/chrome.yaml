@@ -1,0 +1,50 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karakeep-chrome
+  namespace: karakeep
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: karakeep-chrome
+  template:
+    metadata:
+      labels:
+        app: karakeep-chrome
+    spec:
+      containers:
+        - name: chrome
+          image: gcr.io/zenika-hub/alpine-chrome:124
+          args:
+            - --no-sandbox
+            - --disable-gpu
+            - --disable-dev-shm-usage
+            - --remote-debugging-address=0.0.0.0
+            - --remote-debugging-port=9222
+            - --hide-scrollbars
+          ports:
+            - containerPort: 9222
+              name: debug
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 50m
+            limits:
+              memory: 768Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karakeep-chrome-service
+  namespace: karakeep
+spec:
+  selector:
+    app: karakeep-chrome
+  ports:
+    - protocol: TCP
+      port: 9222
+      targetPort: 9222

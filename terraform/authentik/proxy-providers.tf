@@ -154,6 +154,34 @@ resource "authentik_policy_binding" "bazarr_media" {
   order  = 1
 }
 
+# --- Unmanic (admin + media groups) ---
+
+resource "authentik_provider_proxy" "unmanic" {
+  name               = "Unmanic"
+  authorization_flow = data.authentik_flow.default_authorization.id
+  invalidation_flow  = data.authentik_flow.default_invalidation.id
+  external_host      = "https://unmanic.media.${local.domain}"
+  mode               = "forward_single"
+}
+
+resource "authentik_application" "unmanic" {
+  name              = "Unmanic"
+  slug              = "unmanic"
+  protocol_provider = authentik_provider_proxy.unmanic.id
+}
+
+resource "authentik_policy_binding" "unmanic_admin" {
+  target = authentik_application.unmanic.uuid
+  group  = authentik_group.admin.id
+  order  = 0
+}
+
+resource "authentik_policy_binding" "unmanic_media" {
+  target = authentik_application.unmanic.uuid
+  group  = authentik_group.media.id
+  order  = 1
+}
+
 # --- Prowlarr (admin + media groups) ---
 
 resource "authentik_provider_proxy" "prowlarr" {
@@ -339,5 +367,6 @@ resource "authentik_outpost" "embedded" {
     authentik_provider_proxy.lathibandolaise_test.id,
     authentik_provider_proxy.lathibandolaise_prod.id,
     authentik_provider_proxy.dbgate.id,
+    authentik_provider_proxy.unmanic.id,
   ]
 }

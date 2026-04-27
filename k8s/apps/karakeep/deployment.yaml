@@ -1,0 +1,73 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karakeep
+  namespace: karakeep
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: karakeep
+  template:
+    metadata:
+      labels:
+        app: karakeep
+    spec:
+      containers:
+        - name: karakeep
+          image: ghcr.io/karakeep-app/karakeep:0.31.0
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: DATA_DIR
+              value: /data
+            - name: NEXTAUTH_URL
+              value: https://bookmarks.armleth.fr
+            - name: MEILI_ADDR
+              value: http://karakeep-meilisearch-service:7700
+            - name: BROWSER_WEB_URL
+              value: http://karakeep-chrome-service:9222
+            - name: OAUTH_WELLKNOWN_URL
+              value: https://auth.armleth.fr/application/o/karakeep/.well-known/openid-configuration
+            - name: OAUTH_CLIENT_ID
+              value: karakeep
+            - name: OAUTH_PROVIDER_NAME
+              value: Authentik
+            - name: DISABLE_SIGNUPS
+              value: "true"
+            - name: DISABLE_PASSWORD_AUTH
+              value: "true"
+            - name: OAUTH_ALLOW_DANGEROUS_EMAIL_ACCOUNT_LINKING
+              value: "true"
+          envFrom:
+            - secretRef:
+                name: karakeep-secret
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 50m
+            limits:
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: karakeep-data

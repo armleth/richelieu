@@ -341,13 +341,20 @@ step_seed_secrets() {
     local authentik_admin_password authentik_secret_key authentik_db_password
     local nextcloud_admin_password nextcloud_db_password
     local lathibandolaise_db_password
+    local karakeep_nextauth_secret karakeep_meili_master_key
     authentik_admin_password=$(openssl rand -base64 24)
     authentik_secret_key=$(openssl rand -base64 60 | tr -d '\n')
     authentik_db_password=$(openssl rand -base64 24)
     nextcloud_admin_password=$(openssl rand -base64 24)
     nextcloud_db_password=$(openssl rand -base64 24)
     lathibandolaise_db_password=$(openssl rand -base64 24)
+    karakeep_nextauth_secret=$(openssl rand -hex 32)
+    karakeep_meili_master_key=$(openssl rand -base64 36 | tr -d '\n')
 
+    # Karakeep's OIDC client secret is filled in by step 10 (after
+    # terraform/authentik runs). We pre-seed an empty placeholder so the
+    # ExternalSecret can sync; the deployment stays CrashLoopBackOff
+    # until step 10 overwrites the real value.
     kubectl exec -n vault vault-0 \
         -- env \
             VAULT_TOKEN="$VAULT_TOKEN" \
@@ -359,6 +366,8 @@ step_seed_secrets() {
             LATHIBANDOLAISE_DB_PASSWORD="$lathibandolaise_db_password" \
             GHCR_B64="$ghcr_b64" \
             LATHIBANDOLAISE_GIT_PAT="$git_pat" \
+            KARAKEEP_NEXTAUTH_SECRET="$karakeep_nextauth_secret" \
+            KARAKEEP_MEILI_MASTER_KEY="$karakeep_meili_master_key" \
         sh -c '
             set -e
             vault kv put secret/authentik \
@@ -372,6 +381,10 @@ step_seed_secrets() {
                 db-password="$LATHIBANDOLAISE_DB_PASSWORD" \
                 ghcr-pat="$GHCR_B64" \
                 git-pat="$LATHIBANDOLAISE_GIT_PAT"
+            vault kv put secret/karakeep \
+                nextauth-secret="$KARAKEEP_NEXTAUTH_SECRET" \
+                meili-master-key="$KARAKEEP_MEILI_MASTER_KEY" \
+                oidc-client-secret=""
         '
 }
 
@@ -493,6 +506,7 @@ step_authentik_terraform() {
     vault_client_secret=$(cd terraform/authentik && terraform output -raw vault_client_secret)
     actual_budget_client_secret=$(cd terraform/authentik && terraform output -raw actual_budget_client_secret)
     grafana_client_secret=$(cd terraform/authentik && terraform output -raw grafana_client_secret)
+    karakeep_client_secret=$(cd terraform/authentik && terraform output -raw karakeep_client_secret)
 
     kill_port_forward "$authentik_pf_pid"
 
@@ -524,6 +538,17 @@ step_authentik_terraform() {
     kubectl exec -n vault vault-0 \
         -- env VAULT_TOKEN="$VAULT_TOKEN" \
         vault kv get -field=oidc-client-secret secret/grafana >/dev/null
+
+    # Karakeep: patch the existing secret/karakeep entry (seeded in step 7)
+    # with the OIDC client secret without clobbering nextauth-secret /
+    # meili-master-key. `vault kv patch` does a merge on KV v2.
+    kubectl exec -n vault vault-0 \
+        -- env VAULT_TOKEN="$VAULT_TOKEN" KARAKEEP_CLIENT_SECRET="$karakeep_client_secret" \
+        sh -c 'vault kv patch secret/karakeep oidc-client-secret="$KARAKEEP_CLIENT_SECRET"'
+
+    kubectl exec -n vault vault-0 \
+        -- env VAULT_TOKEN="$VAULT_TOKEN" \
+        vault kv get -field=oidc-client-secret secret/karakeep >/dev/null
 
     log "  re-applying terraform/vault with the Authentik OIDC client secret"
     (
@@ -565,7 +590,8 @@ Manual follow-ups (cannot be automated):
 
     SSO is then available for ArgoCD, Vault, Bbox, Homepage, Code Server,
     Lathibandolaise test/prod, DbGate (db.lathibandolaise.dev.armleth.fr),
-    Actual Budget (finances.armleth.fr, admin-only), and the media stack.
+    Actual Budget (finances.armleth.fr, admin-only),
+    Karakeep (bookmarks.armleth.fr, admin-only), and the media stack.
 
  2. Log in to ArgoCD (https://argocd.armleth.fr) via Authentik SSO
     and verify every Application syncs Healthy.
@@ -576,7 +602,11 @@ Manual follow-ups (cannot be automated):
  4. Enable Jellyfin Intel QSV transcoding settings -- see
     "Jellyfin hardware acceleration" in README.md.
 
- 5. Nextcloud: enable External storage support, mount /media as the
+ 5. Unmanic first-run config (workers=1, library=/library, install
+    HEVC QSV + Re-mux MP4 plugins) -- see "Unmanic library transcoder"
+    in README.md.
+
+ 6. Nextcloud: enable External storage support, mount /media as the
     "Media" folder -- see "Adding media via Nextcloud" in README.md.
 
 Remember:

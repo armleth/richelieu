@@ -13,13 +13,14 @@ GitOps infrastructure for a K3s single-node cluster. ArgoCD manages itself and a
 - **CloudNativePG** (PostgreSQL operator -- manages Authentik's, Nextcloud's, and Lathibandolaise's databases)
 - **cert-manager** (automated TLS certificates via Let's Encrypt)
 - **Authentik** (centralized OIDC + proxy authentication for ArgoCD, Vault, Homepage, Bbox, Code Server, Lathibandolaise, DbGate, Actual Budget, and media stack)
-- **Media stack** (Jellyfin, Radarr, Sonarr, Prowlarr, FlareSolverr, qBittorrent, Flood)
+- **Media stack** (Jellyfin, Radarr, Sonarr, Prowlarr, FlareSolverr, qBittorrent, Flood, Bazarr, Unmanic)
 - **Nextcloud** (file sync & sharing with Redis caching and PostgreSQL backend)
 - **Homepage** (OIDC-protected dashboard with per-service resource monitoring -- home.armleth.fr)
 - **Code Server** (OIDC-protected VS Code in the browser -- dev.armleth.fr)
 - **Lathibandolaise** (test + prod deployments with CNPG Postgres, ForwardAuth via Authentik -- test.lathibandolaise.dev.armleth.fr / prod.lathibandolaise.dev.armleth.fr)
 - **DbGate** (OIDC-protected database browser for the Lathibandolaise PostgreSQL cluster -- db.lathibandolaise.dev.armleth.fr)
 - **Actual Budget** (self-hosted personal finance manager with native OIDC against Authentik, admin-only -- finances.armleth.fr)
+- **Karakeep** (self-hosted bookmark manager with native OIDC against Authentik, admin-only -- bookmarks.armleth.fr)
 - **Monitoring** (kube-prometheus-stack + prometheus-blackbox-exporter; Grafana with native OIDC against Authentik, admin-only -- metrics.armleth.fr)
 - **Terraform** (Vault and Authentik configuration as code)
 
@@ -66,6 +67,7 @@ k8s/
       flaresolverr/                         # Cloudflare bypass (internal only)
       qbittorrent/                          # Torrent client (torrents.media.armleth.fr)
       flood/                                # Torrent UI (downloads.media.armleth.fr)
+      unmanic/                              # Library transcoder (unmanic.media.armleth.fr)
     homepage/                               # Dashboard (home.armleth.fr, OIDC-protected)
       rbac.yaml                             # ServiceAccount + ClusterRole + ClusterRoleBinding
       configmap.yaml                        # Homepage YAML configuration files
@@ -104,6 +106,14 @@ k8s/
       deployment.yaml                       # Actual Budget (actualbudget/actual-server:latest, port 5006, ACTUAL_LOGIN_METHOD=openid)
       service.yaml                          # Actual Budget Service (port 5006)
       ingress.yaml                          # IngressRoute for finances.armleth.fr (plain HTTPS, no ForwardAuth)
+    karakeep/                               # Karakeep bookmark manager (bookmarks.armleth.fr, native OIDC via Authentik)
+      external-secret.yaml                  # NEXTAUTH_SECRET + MEILI_MASTER_KEY + OIDC client secret (ExternalSecret from Vault: secret/karakeep)
+      pvc.yaml                              # 10Gi PVC for SQLite DB + assets (/data) + 2Gi PVC for Meilisearch
+      meilisearch.yaml                      # Meilisearch deployment + service (search backend)
+      chrome.yaml                           # Headless Chrome deployment + service (link archiving / screenshots)
+      deployment.yaml                       # Karakeep web (ghcr.io/karakeep-app/karakeep, port 3000, OAUTH_WELLKNOWN_URL=Authentik)
+      service.yaml                          # Karakeep Service (port 3000)
+      ingress.yaml                          # IngressRoute for bookmarks.armleth.fr (plain HTTPS, no ForwardAuth)
     monitoring-config/                      # Local CRs for the monitoring stack (namespace: monitoring)
       namespace.yaml                        # monitoring Namespace
       external-secret.yaml                  # Grafana OIDC client secret (ExternalSecret from Vault: secret/grafana:oidc-client-secret)
@@ -235,6 +245,10 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" sh -c '
     db-password="$(openssl rand -base64 24)" \
     ghcr-pat="<base64-encoded armleth:github-pat>" \
     git-pat="<github-pat>"
+  vault kv put secret/karakeep \
+    nextauth-secret="$(openssl rand -hex 32)" \
+    meili-master-key="$(openssl rand -base64 36 | tr -d "\n")" \
+    oidc-client-secret=""
 '
 ```
 
@@ -308,6 +322,7 @@ ARGOCD_CLIENT_SECRET=$(terraform output -raw argocd_client_secret)
 VAULT_CLIENT_SECRET=$(terraform output -raw vault_client_secret)
 ACTUAL_BUDGET_CLIENT_SECRET=$(terraform output -raw actual_budget_client_secret)
 GRAFANA_CLIENT_SECRET=$(terraform output -raw grafana_client_secret)
+KARAKEEP_CLIENT_SECRET=$(terraform output -raw karakeep_client_secret)
 cd ../..
 
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
@@ -321,6 +336,11 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   GRAFANA_CLIENT_SECRET="$GRAFANA_CLIENT_SECRET" \
   sh -c 'vault kv put secret/grafana oidc-client-secret="$GRAFANA_CLIENT_SECRET"'
 
+# Karakeep: patch (don't overwrite) so we keep nextauth-secret / meili-master-key
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  KARAKEEP_CLIENT_SECRET="$KARAKEEP_CLIENT_SECRET" \
+  sh -c 'vault kv patch secret/karakeep oidc-client-secret="$KARAKEEP_CLIENT_SECRET"'
+
 # Verify the secrets were stored correctly
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv get -field=oidc-client-secret secret/argocd
@@ -328,6 +348,8 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv get -field=oidc-client-secret secret/actual-budget
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
   vault kv get -field=oidc-client-secret secret/grafana
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+  vault kv get -field=oidc-client-secret secret/karakeep
 
 cd terraform/vault
 terraform apply -var="vault_oidc_client_secret=$VAULT_CLIENT_SECRET"
@@ -351,7 +373,7 @@ Log in to `https://auth.armleth.fr` using a recovery link (see step 9).
 
   Groups are managed declaratively in `terraform/authentik/groups.tf`; only user creation and assignment is done via the UI.
 
-You can then log into ArgoCD, Vault, Bbox, Homepage, Code Server, Lathibandolaise, DbGate, Actual Budget, Grafana, and the media stack via the **Authentik** SSO option.
+You can then log into ArgoCD, Vault, Bbox, Homepage, Code Server, Lathibandolaise, DbGate, Actual Budget, Karakeep, Grafana, and the media stack via the **Authentik** SSO option.
 
 ## Adding a TLS certificate
 
@@ -389,6 +411,7 @@ All media services run in the `media` namespace, managed by a single ArgoCD Appl
 | FlareSolverr | internal only | Cloudflare bypass for Prowlarr |
 | qBittorrent | `torrents.media.armleth.fr` | Torrent download client |
 | Flood | `downloads.media.armleth.fr` | Modern torrent UI for qBittorrent |
+| Unmanic | `unmanic.media.armleth.fr` | Auto-transcoder (HEVC/AAC via Intel QSV) |
 
 ### DNS records
 
@@ -400,6 +423,7 @@ series.media.armleth.fr
 trackers.media.armleth.fr
 torrents.media.armleth.fr
 downloads.media.armleth.fr
+unmanic.media.armleth.fr
 ```
 
 ### Host setup
@@ -534,6 +558,14 @@ DbGate is a web-based database browser at `https://db.lathibandolaise.dev.armlet
 
 Actual Budget is a self-hosted personal finance manager at `https://finances.armleth.fr`, deployed in the `actual-budget` namespace. It uses its bundled SQLite database (no CNPG cluster), persisted on a 10Gi RWO PVC mounted at `/data`. Authentication uses Actual Budget's native OpenID Connect integration against Authentik (`ACTUAL_LOGIN_METHOD=openid`); only users in the `admin` group are allowed by the Authentik application policy. The OIDC client secret is stored in Vault at `secret/actual-budget:oidc-client-secret` and surfaced to the pod via the `actual-budget-oidc` ExternalSecret. The Authentik application's redirect URI is `https://finances.armleth.fr/openid/callback`.
 
+## Karakeep
+
+Karakeep is a self-hosted bookmark manager at `https://bookmarks.armleth.fr`, deployed in the `karakeep` namespace. It uses its bundled SQLite database (no CNPG cluster -- PostgreSQL is not officially supported by Karakeep yet, see [karakeep #1782](https://github.com/karakeep-app/karakeep/issues/1782)), persisted on a 10Gi RWO PVC mounted at `/data`. It runs three components in the namespace: the web app (`karakeep`), `meilisearch` (full-text search backend, separate 2Gi PVC), and a headless Chrome (`alpine-chrome`) used for link archiving and screenshots.
+
+Authentication uses Karakeep's native OAuth/OIDC provider (`OAUTH_WELLKNOWN_URL=https://auth.armleth.fr/application/o/karakeep/.well-known/openid-configuration`); only users in the `admin` group are allowed by the Authentik application policy. Password auth and signups are disabled (`DISABLE_PASSWORD_AUTH=true`, `DISABLE_SIGNUPS=true`) so SSO is the only entry point. The OIDC client secret is stored in Vault at `secret/karakeep:oidc-client-secret` and surfaced to the pod via the `karakeep-secret` ExternalSecret (which also exposes `NEXTAUTH_SECRET` and `MEILI_MASTER_KEY`). The Authentik application's redirect URI is `https://bookmarks.armleth.fr/api/auth/callback/custom`.
+
+`secret/karakeep` is seeded with random `nextauth-secret` and `meili-master-key` values during `setup.sh` step 7; the `oidc-client-secret` field is filled in by step 10 (`vault kv patch`) once the Authentik provider exists. Until step 10 runs, the karakeep pod will be `CrashLoopBackOff`.
+
 ## Monitoring
 
 A lightweight observability stack runs in the `monitoring` namespace, deployed as three Helm-based ArgoCD Applications (`kube-prometheus-stack`, `prometheus-blackbox-exporter`, `scaphandre`) plus a sibling Kustomize app (`monitoring-config`) that holds the local CRs (Namespace, ExternalSecret, IngressRoute, ServiceMonitor, Probes).
@@ -667,6 +699,59 @@ Jellyfin and Nextcloud share a `/data/media` hostPath volume. To upload films th
    - **Configuration**: `/media`
    - **Available for**: All users (or restrict as needed)
 4. The `Media` folder now appears in Nextcloud's file browser. Any file uploaded there is immediately visible to Jellyfin at `/media`.
+
+## Unmanic library transcoder
+
+Unmanic watches `/data/media` and re-encodes every video to **H.265 (HEVC) + AAC in MP4** using the host iGPU via Intel Quick Sync (`/dev/dri` passthrough, identical to Jellyfin). The source file is replaced once the re-encode completes.
+
+**Web UI**: `https://unmanic.media.armleth.fr` (Authentik ForwardAuth, `admin` + `media` groups).
+
+### First-time configuration
+
+These steps cannot be put in YAML -- Unmanic seeds its SQLite database from the web UI on first run:
+
+1. Open the UI.
+2. **Settings > Workers** -- set **Number of workers** to `1` (low-RAM host).
+3. **Settings > Libraries**:
+   - Path: `/library`
+   - Enable "Run a full library scan on Unmanic startup": **on**
+   - Schedule: every 1h (or "On file modification" via inotify if your kernel supports `CONFIG_FANOTIFY` -- K3s default does).
+4. **Plugins > Plugin Manager > Install** the following plugins from the official marketplace ([Josh5 plugin repos](https://github.com/Josh5?tab=repositories&q=unmanic.plugin.)):
+   - `Video Encoder H265 (hevc_qsv)` -- does the actual HEVC re-encode via QSV (FFmpeg `-c:v hevc_qsv`).
+   - `Reorder Streams by Language`
+   - `Re-mux video files to MP4` -- forces the MP4 container.
+5. **Plugins > Plugin Flow** for the library: chain `Re-mux to MP4` -> `Video Encoder H265 QSV` -> (optional `Reorder Streams`).
+6. In the **HEVC QSV** plugin settings:
+   - Audio codec: AAC, bitrate 192k.
+   - Pixel format: `nv12` (8-bit) for max client compatibility, or `p010le` (10-bit) if you only ever play on Jellyfin.
+   - Replace original: **on** (Unmanic's default).
+7. Submit the dashboard's "Force scan" once to seed the queue.
+
+### Concurrency / season-pack safety
+
+Unmanic scans `/library` (= host `/data/media`), **never** `/downloads`. The ingest pipeline is event-driven and strictly sequential, so partial files cannot leak into Unmanic's view:
+
+1. qBittorrent writes downloading files with the `.!qB` suffix (or in a separate incomplete-path). The real filename only materialises at 100 %.
+2. Sonarr/Radarr's Completed Download Handler is fired by qBittorrent's "torrent finished" event. For a **season pack**, that fires once after the *entire* pack finishes -- there is no per-episode partial import. The handler then hard-links each completed episode from `/downloads` into `/media/tv/<Show>/Season NN/`.
+3. Unmanic's scanner therefore only ever sees fully-imported files. The hard-link in `/media` is created atomically against an already-complete source.
+
+### Verification
+
+Inside the pod:
+
+```bash
+kubectl -n media exec deploy/unmanic -- ls -la /dev/dri
+kubectl -n media exec deploy/unmanic -- /usr/bin/ffmpeg -hide_banner -encoders 2>&1 | grep -E '(qsv|libfdk|aac)'
+# Expect: hevc_qsv, h264_qsv, aac
+```
+
+Sample QSV smoke test (drops 1 second of test footage):
+
+```bash
+kubectl -n media exec deploy/unmanic -- /usr/bin/ffmpeg -hide_banner -y \
+  -f lavfi -i testsrc=duration=1:size=1280x720:rate=30 \
+  -c:v hevc_qsv -preset veryfast /tmp/qsv_test.mp4
+```
 
 ## Post-bootstrap
 

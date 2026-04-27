@@ -1,0 +1,17 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: karakeep-ingress
+  namespace: karakeep
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`bookmarks.armleth.fr`)
+      kind: Rule
+      services:
+        - name: karakeep-service
+          port: 3000
+  tls:
+    secretName: karakeep-tls-secret

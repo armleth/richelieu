@@ -60,6 +60,13 @@ data:
             namespace: media
             app: bazarr
             podSelector: "app=bazarr"
+        - Unmanic:
+            icon: unmanic.png
+            href: https://unmanic.media.armleth.fr
+            description: Library transcoder
+            namespace: media
+            app: unmanic
+            podSelector: "app=unmanic"
         - Prowlarr:
             icon: prowlarr.png
             href: https://trackers.media.armleth.fr
@@ -146,6 +153,13 @@ data:
             namespace: actual-budget
             app: actual-budget
             podSelector: "app=actual-budget"
+        - Karakeep:
+            icon: karakeep.png
+            href: https://bookmarks.armleth.fr
+            description: Bookmark manager
+            namespace: karakeep
+            app: karakeep
+            podSelector: "app=karakeep"
 
     - Dev:
         - Code Server:
