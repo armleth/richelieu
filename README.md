@@ -708,24 +708,53 @@ Unmanic watches `/data/media` and re-encodes every video to **H.265 (HEVC) + AAC
 
 ### First-time configuration
 
-These steps cannot be put in YAML -- Unmanic seeds its SQLite database from the web UI on first run:
+These steps cannot be put in YAML -- Unmanic seeds its SQLite database from the web UI on first run. The official upstream plugin set has been consolidated into a single unified video transcoding plugin (`video_transcoder` -> "Transcode Video Files") covering CPU/QSV/VAAPI/NVENC; the old per-codec plugins (`encoder_video_hevc_qsv`, etc.) are no longer the recommended path.
 
-1. Open the UI.
-2. **Settings > Workers** -- set **Number of workers** to `1` (low-RAM host).
-3. **Settings > Libraries**:
-   - Path: `/library`
-   - Enable "Run a full library scan on Unmanic startup": **on**
-   - Schedule: every 1h (or "On file modification" via inotify if your kernel supports `CONFIG_FANOTIFY` -- K3s default does).
-4. **Plugins > Plugin Manager > Install** the following plugins from the official marketplace ([Josh5 plugin repos](https://github.com/Josh5?tab=repositories&q=unmanic.plugin.)):
-   - `Video Encoder H265 (hevc_qsv)` -- does the actual HEVC re-encode via QSV (FFmpeg `-c:v hevc_qsv`).
-   - `Reorder Streams by Language`
-   - `Re-mux video files to MP4` -- forces the MP4 container.
-5. **Plugins > Plugin Flow** for the library: chain `Re-mux to MP4` -> `Video Encoder H265 QSV` -> (optional `Reorder Streams`).
-6. In the **HEVC QSV** plugin settings:
-   - Audio codec: AAC, bitrate 192k.
-   - Pixel format: `nv12` (8-bit) for max client compatibility, or `p010le` (10-bit) if you only ever play on Jellyfin.
-   - Replace original: **on** (Unmanic's default).
-7. Submit the dashboard's "Force scan" once to seed the queue.
+1. **Settings > Workers**:
+   - **Worker groups**: edit the default group (Unmanic auto-creates one with a randomly-generated name on first boot, e.g. *"Aewald, the blissful library"*'s sibling group) and set **Worker Count** to `1` (range 0-12; low-RAM host). The per-group `Worker Count` replaces the old single "Number of workers" field.
+   - **Cache path**: leave at `/tmp/unmanic` (matches the `emptyDir { sizeLimit: 50Gi }` mount in the deployment).
+
+2. **Settings > Libraries**: Unmanic auto-creates a default library on first boot (random name like *"Aewald, the blissful library"*) already pointing at `/library`. **Edit it** -- don't add a new one.
+   - **Library path**: confirm it is `/library`.
+   - **Library scanner** tab:
+     - "Enable periodic library scans": **on**
+     - "Library scan schedule in minutes": `60`
+     - "Run a one off library scan on startup": **on**
+   - **File monitor** tab: enable "Start a file monitoring task against this library path" for inotify-driven real-time pickup (Unmanic recommends scanner *or* file monitor, not both -- pick file monitor if you want lowest latency).
+   - **Plugins** tab: see step 4.
+
+3. **Plugins > Plugin Manager > Install** from the default Unmanic plugin repo (already enabled out of the box; see [Unmanic/unmanic-plugins](https://github.com/Unmanic/unmanic-plugins)):
+   - **Transcode Video Files** (`video_transcoder`) -- unified video encoder, supports HEVC + QSV.
+   - **Audio Encoder AAC** (`encoder_audio_aac`) -- re-encodes audio to AAC (`video_transcoder` only touches video; audio is `-c:a copy` by default).
+   - **Remux Video Files** (`video_remuxer`) -- forces the MP4 container.
+   - (Optional) **Re-order audio streams by language** (`reorder_audio_streams_by_language`).
+
+4. **Library > Plugins** (the library's plugin flow lives inside the library, not in a global "Plugin Flow" page). Add the plugins to the **Worker - Process** stage in this order:
+   1. `Transcode Video Files`
+   2. `Audio Encoder AAC`
+   3. `Remux Video Files`
+   4. (optional) `Re-order audio streams by language`
+
+   Re-mux runs last so the container swap happens after both video and audio are in the target codecs.
+
+5. **`Transcode Video Files`** plugin settings (per-library):
+   - **Mode**: Standard.
+   - **Video codec**: `HEVC (h265)`.
+   - **Encoder**: `hevc_qsv` (Intel QuickSync). Confirm `/dev/dri/renderD128` is detected.
+   - **Encoder quality preset**: `veryfast` or `faster`.
+   - **Pixel format**: `nv12` (8-bit, broadest compatibility) or `p010le` (10-bit, Jellyfin-only).
+   - **Enable HW accelerated decoding**: `QSV`. Decode + encode stay in iGPU memory; no CPU↔GPU memcpy. Falls back to CPU automatically for codecs the iGPU cannot decode (e.g. AV1 on Skylake-class iGPUs).
+   - **Safe decode mode**: **on**. Adds `-reinit_filter 0` and forces a one-frame GPU↔CPU round-trip; required to prevent QSV decoder reinit failures on WEBDL sources with inconsistent color-space metadata (very common in 2026 streaming releases). Single-digit % perf cost.
+
+6. **`Remux Video Files`** plugin settings: set **Container** to `mp4`.
+
+   **Known limitation**: MP4 only allows text-based subtitles (`mov_text`). Sources with bitmap subtitle streams -- `hdmv_pgs_subtitle` (BluRay PGS) or `dvd_subtitle` -- **will fail at the remux step** with `Default encoder for format mp4 (codec none) is probably disabled`. This affects most UHD/BluRay rips but very few WEB-DL/WEBRip releases. Failed files are left untouched in `/data/media`; Jellyfin transcodes them on the fly at playback time. If you would rather process every file at the cost of MP4 strictness, set **Container** to `mkv` instead -- MKV holds PGS / DVD / FLAC / DTS losslessly and direct-plays on every modern Jellyfin client.
+
+7. **`Audio Encoder AAC`** plugin settings: leave on defaults (auto-bitrate based on channel count: 128 kbit/s stereo, 384 kbit/s 5.1).
+
+8. **Replace original**: Unmanic's default post-processor replaces source files on success -- nothing to toggle.
+
+9. From the **Dashboard**, click **"Library Scanner > Trigger now"** (or the equivalent "Force scan" button) once to seed the queue.
 
 ### Concurrency / season-pack safety
 
@@ -752,6 +781,24 @@ kubectl -n media exec deploy/unmanic -- /usr/bin/ffmpeg -hide_banner -y \
   -f lavfi -i testsrc=duration=1:size=1280x720:rate=30 \
   -c:v hevc_qsv -preset veryfast /tmp/qsv_test.mp4
 ```
+
+### Troubleshooting failed tasks
+
+When a task fails, the Dashboard shows **Status: Failed** but no inline log. The full ffmpeg stderr lives in Unmanic's SQLite history table at `/config/.unmanic/config/unmanic.db`:
+
+```bash
+# Most-recent failed task's full ffmpeg dump (probe output + stderr):
+kubectl -n media exec deploy/unmanic -- \
+  sqlite3 /config/.unmanic/config/unmanic.db \
+  "SELECT dump FROM completedtaskscommandlogs ORDER BY id DESC LIMIT 1;" \
+  | tail -100
+
+# Plugin-level errors and which stage failed:
+kubectl -n media exec deploy/unmanic -- \
+  tail -200 /config/.unmanic/logs/unmanic.log | grep -iE 'error|fail'
+```
+
+Common failure: `Default encoder for format mp4 (codec none) is probably disabled` -- bitmap subtitle stream, see "Known limitation" above (Remux Video Files step). Switching the remux container to `mkv` fixes every instance.
 
 ## Post-bootstrap
 

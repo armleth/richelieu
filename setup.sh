@@ -602,9 +602,27 @@ Manual follow-ups (cannot be automated):
  4. Enable Jellyfin Intel QSV transcoding settings -- see
     "Jellyfin hardware acceleration" in README.md.
 
- 5. Unmanic first-run config (workers=1, library=/library, install
-    HEVC QSV + Re-mux MP4 plugins) -- see "Unmanic library transcoder"
-    in README.md.
+ 5. Unmanic first-run config -- see "Unmanic library transcoder"
+    in README.md. Quick recap:
+      - Settings > Workers: edit the default Worker group, set
+        Worker Count=1; leave Cache path at /tmp/unmanic.
+      - Settings > Libraries: edit the auto-created default
+        library at /library; enable Library scanner + File
+        monitor.
+      - Plugins: install Transcode Video Files + Audio Encoder
+        AAC + Remux Video Files; add all three to the library's
+        plugin flow (in that order, in both the Library
+        Management - File Test stage AND the Worker - Process
+        stage).
+      - Transcode Video Files settings: codec=HEVC, encoder=
+        hevc_qsv, HW-accelerated decoding=QSV, Safe decode
+        mode=ON (required for WEBDL sources with inconsistent
+        color metadata).
+      - Remux Video Files settings: Container=mp4. Sources
+        with PGS/DVD bitmap subtitles (most UHD BluRay rips)
+        will fail at the remux stage and stay untouched --
+        Jellyfin transcodes those on the fly at playback. Use
+        Container=mkv if you want every file processed.
 
  6. Nextcloud: enable External storage support, mount /media as the
     "Media" folder -- see "Adding media via Nextcloud" in README.md.
