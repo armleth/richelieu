@@ -51,7 +51,7 @@ spec:
   postgresql:
     parameters:
       shared_buffers: "32MB"
-      max_connections: "50"
+      max_connections: "150"
       max_parallel_workers: "1"
       max_worker_processes: "2"
       max_parallel_workers_per_gather: "1"
