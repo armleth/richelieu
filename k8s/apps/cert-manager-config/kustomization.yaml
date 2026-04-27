@@ -22,5 +22,4 @@ resources:
   - certificates/dbgate.yaml
   - certificates/actual-budget.yaml
   - certificates/metrics.yaml
-  - certificates/karakeep.yaml
   - certificates/unmanic.yaml
