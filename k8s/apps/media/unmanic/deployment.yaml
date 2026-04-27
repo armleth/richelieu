@@ -53,12 +53,15 @@ spec:
               path: /unmanic/ui/dashboard/
               port: 8888
             initialDelaySeconds: 20
-            periodSeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
           livenessProbe:
             tcpSocket:
               port: 8888
             initialDelaySeconds: 60
             periodSeconds: 30
+            timeoutSeconds: 5
       volumes:
         - name: config
           persistentVolumeClaim:
