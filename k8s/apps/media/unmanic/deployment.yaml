@@ -75,7 +75,7 @@ spec:
             claimName: media-downloads
         - name: cache
           emptyDir:
-            sizeLimit: 50Gi
+            sizeLimit: 100Gi
         - name: dri
           hostPath:
             path: /dev/dri
