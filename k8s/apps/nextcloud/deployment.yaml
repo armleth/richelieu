@@ -68,6 +68,9 @@ spec:
               mountPath: /var/www/html
             - name: jellyfin-media
               mountPath: /media
+            - name: apache-remoteip
+              mountPath: /etc/apache2/conf-enabled/remoteip.conf
+              subPath: remoteip.conf
           readinessProbe:
             httpGet:
               path: /status.php
@@ -94,3 +97,6 @@ spec:
           hostPath:
             path: /data/media
             type: DirectoryOrCreate
+        - name: apache-remoteip
+          configMap:
+            name: nextcloud-apache-remoteip

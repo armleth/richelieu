@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nextcloud-apache-remoteip
+  namespace: nextcloud
+data:
+  # Overrides /etc/apache2/conf-enabled/remoteip.conf shipped in the
+  # nextcloud:apache image. The bundled config uses RemoteIPHeader X-Real-IP,
+  # but Traefik does not emit X-Real-IP -- only X-Forwarded-For. Without this
+  # override, mod_remoteip never rewrites REMOTE_ADDR and Nextcloud's
+  # bruteforce throttle keys every login failure on the Traefik pod IP.
+  remoteip.conf: |
+    RemoteIPHeader X-Forwarded-For
+    RemoteIPInternalProxy 10.0.0.0/8
+    RemoteIPInternalProxy 172.16.0.0/12
+    RemoteIPInternalProxy 192.168.0.0/16
