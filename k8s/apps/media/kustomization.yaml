@@ -6,7 +6,6 @@ namespace: media
 
 resources:
   - downloads-pvc.yaml
-  - arr-local-client-ip-middleware.yaml
   - jellyfin/
   - radarr/
   - sonarr/

@@ -24,6 +24,5 @@ spec:
       middlewares:
         - name: authentik-forward-auth
           namespace: authentik
-        - name: arr-local-client-ip
   tls:
     secretName: radarr-tls-secret

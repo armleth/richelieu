@@ -68,9 +68,9 @@ spec:
               mountPath: /var/www/html
             - name: jellyfin-media
               mountPath: /media
-            - name: apache-remoteip
-              mountPath: /etc/apache2/conf-enabled/remoteip.conf
-              subPath: remoteip.conf
+            - name: nextcloud-extra-config
+              mountPath: /var/www/html/config/disable-bruteforce.config.php
+              subPath: disable-bruteforce.config.php
           readinessProbe:
             httpGet:
               path: /status.php
@@ -97,6 +97,6 @@ spec:
           hostPath:
             path: /data/media
             type: DirectoryOrCreate
-        - name: apache-remoteip
+        - name: nextcloud-extra-config
           configMap:
-            name: nextcloud-apache-remoteip
+            name: nextcloud-extra-config

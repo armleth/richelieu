@@ -9,7 +9,7 @@ resources:
   - postgres.yaml
   - external-secret.yaml
   - redis.yaml
-  - apache-remoteip-configmap.yaml
+  - extra-config-configmap.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml

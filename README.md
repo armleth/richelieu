@@ -254,11 +254,10 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" sh -c '
 
 ### 8. Configure Traefik
 
-Three cluster-wide Traefik settings are applied together via a single `HelmChartConfig`:
+Two cluster-wide Traefik settings are applied together via a single `HelmChartConfig`:
 
 1. **Cross-namespace middleware.** Authentik's ForwardAuth middleware lives in the `authentik` namespace but is referenced by IngressRoutes in other namespaces — Traefik blocks this by default.
 2. **HTTP→HTTPS redirect.** An entrypoint-level 301 redirect sends every request arriving on port 80 to its HTTPS equivalent (same host, path, query). This is safe with Let's Encrypt's HTTP-01 challenge because the ACME client follows 3xx redirects and accepts any certificate on the redirect target.
-3. **Preserve client source IP.** `service.spec.externalTrafficPolicy: Local` keeps the original client IP all the way to Traefik (otherwise kube-proxy SNATs it to the cluster gateway). This is required for per-application bruteforce throttles, geo logging, etc. Safe on a single-node k3s.
 
 ```bash
 cat <<'EOF' | kubectl apply -f -
@@ -269,9 +268,6 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
-    service:
-      spec:
-        externalTrafficPolicy: Local
     providers:
       kubernetesCRD:
         allowCrossNamespace: true

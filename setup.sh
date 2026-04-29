@@ -401,9 +401,6 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
-    service:
-      spec:
-        externalTrafficPolicy: Local
     providers:
       kubernetesCRD:
         allowCrossNamespace: true

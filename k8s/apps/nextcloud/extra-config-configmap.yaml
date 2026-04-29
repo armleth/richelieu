@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nextcloud-extra-config
+  namespace: nextcloud
+data:
+  # Mounted into /var/www/html/config/, where Nextcloud auto-loads any
+  # *.config.php file in addition to the main config.php. Disables the
+  # bruteforce throttle because Traefik runs with the default
+  # externalTrafficPolicy (Cluster), so kube-proxy SNATs every request to a
+  # single cluster IP -- the throttle would key all login failures on that
+  # one IP and lock everyone out together. Authentik fronts the rest of the
+  # stack; Nextcloud relies on strong passwords + 2FA + app passwords.
+  disable-bruteforce.config.php: |
+    <?php
+    $CONFIG = [
+      'auth.bruteforce.protection.enabled' => false,
+    ];
