@@ -71,6 +71,14 @@ spec:
             - name: nextcloud-extra-config
               mountPath: /var/www/html/config/disable-bruteforce.config.php
               subPath: disable-bruteforce.config.php
+          # /status.php exercises the full PHP-FPM + Apache prefork +
+          # Postgres + Redis path, so when the host is under load the
+          # request occasionally takes >1s and the kubelet's default
+          # 1s probe timeout makes it look unhealthy. With 87 spurious
+          # restarts already, give the probe more slack: 10s timeout
+          # and a higher failure threshold so a transient slowdown
+          # doesn't trigger an Apache SIGWINCH (graceful shutdown ->
+          # pod restart).
           readinessProbe:
             httpGet:
               path: /status.php
@@ -79,7 +87,9 @@ spec:
                 - name: Host
                   value: nextcloud.armleth.fr
             initialDelaySeconds: 30
-            periodSeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
           livenessProbe:
             httpGet:
               path: /status.php
@@ -88,7 +98,9 @@ spec:
                 - name: Host
                   value: nextcloud.armleth.fr
             initialDelaySeconds: 60
-            periodSeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 5
       volumes:
         - name: data
           persistentVolumeClaim:
