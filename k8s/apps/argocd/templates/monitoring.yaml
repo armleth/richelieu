@@ -40,12 +40,26 @@ spec:
             limits:
               memory: 128Mi
         kube-state-metrics:
+          # The 64Mi limit accumulated 2182 restarts: actual RSS sits
+          # around 26Mi, but the 5s liveness probe regularly returned
+          # 503 while the host was thrashing on swap, so the kubelet
+          # killed the pod. Bump the limit a bit and loosen the probe
+          # timing so a slow API server during a swap stall doesn't
+          # immediately trigger a restart.
           resources:
             requests:
-              memory: 32Mi
+              memory: 48Mi
               cpu: 10m
             limits:
-              memory: 64Mi
+              memory: 128Mi
+          livenessProbe:
+            timeoutSeconds: 10
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            timeoutSeconds: 10
+            periodSeconds: 30
+            failureThreshold: 5
         prometheus-node-exporter:
           resources:
             requests:
