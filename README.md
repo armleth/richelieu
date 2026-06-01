@@ -800,6 +800,49 @@ kubectl -n media exec deploy/unmanic -- \
 
 Common failure: `Default encoder for format mp4 (codec none) is probably disabled` -- bitmap subtitle stream, see "Known limitation" above (Remux Video Files step). Switching the remux container to `mkv` fixes every instance.
 
+## Host / kernel tuning
+
+The K3s node is memory-constrained (~7.5 GiB for the full ArgoCD + monitoring + media + auth + databases stack), so the host has to be tuned to avoid swap thrashing. The relevant block lives in [`configuration.nix`](configuration.nix):
+
+```nix
+boot.kernel.sysctl = {
+    "vm.swappiness" = 10;
+    "vm.vfs_cache_pressure" = 50;
+    "vm.dirty_ratio" = 10;
+    "vm.dirty_background_ratio" = 5;
+};
+```
+
+Why these values:
+
+- **`vm.swappiness=10`** (default 60). With the default value, the kernel happily swaps out anonymous pages even when there's some RAM free, in order to grow the file-cache. On a tight node that means cluster-critical processes (`k3s-server` chiefly) end up with hundreds of MiB to >1 GiB on disk, every API call has to page them back in, and the VM stalls on swap I/O (`/proc/pressure/io full` was hitting ~33% sustained). At `10`, the kernel only swaps under real memory pressure and prefers to reclaim file-cache first. Swap is still kept enabled as a safety net so OOM-killer is the last resort, not the first.
+- **`vm.vfs_cache_pressure=50`** (default 100). Tells the kernel to hold on to dentry/inode caches longer; cheap to keep, expensive to rebuild on every `ls` / config-map mount.
+- **`vm.dirty_ratio=10` / `vm.dirty_background_ratio=5`** (defaults 20 / 10). Caps the amount of dirty pages before writeback starts, so a Prometheus WAL flush or a large `git clone` in argocd-repo-server can't accumulate enough dirty pages to stall the whole VM at once.
+
+These are applied by `nixos-rebuild switch` (no reboot needed -- `boot.kernel.sysctl` is wired to `systemd-sysctl` and reloaded on activation, despite the `boot.` prefix). Verify with:
+
+```bash
+ssh <server> 'sysctl vm.swappiness vm.vfs_cache_pressure vm.dirty_ratio vm.dirty_background_ratio'
+# vm.swappiness = 10
+# vm.vfs_cache_pressure = 50
+# vm.dirty_ratio = 10
+# vm.dirty_background_ratio = 5
+```
+
+### After every `nixos-rebuild switch`: bounce svclb-traefik
+
+NixOS's activation script reloads `iptables` from its declarative config, which **flushes the `nat` table**. K3s's built-in service-load-balancer (`svclb-traefik-*` DaemonSet) only writes its DNAT rules **once, at pod start**, so after a rebuild the rules are gone and nothing answers on ports 80/443 from outside the node (the pods stay `Running` but ingress goes dark -- `curl https://home.armleth.fr` hangs and times out).
+
+Fix:
+
+```bash
+kubectl -n kube-system rollout restart daemonset/svclb-traefik-<hash>
+# DaemonSet name has a hash suffix -- find it with:
+# kubectl -n kube-system get ds -l svccontroller.k3s.cattle.io/svcname=traefik
+```
+
+The new svclb pod re-runs its init script, recreates the `iptables -t nat PREROUTING` DNAT rules pointing at the traefik ClusterIP, and ingress returns immediately (no need to bounce traefik itself).
+
 ## Post-bootstrap
 
 This repository is the single source of truth. All changes go through git -- ArgoCD syncs automatically with pruning and self-healing enabled.
