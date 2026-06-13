@@ -59,6 +59,11 @@
 # 8472 # k3s, flannel: required if using multi-node for inter-node networking
     ];
 
+    # On a cold boot k3s can take longer than systemd's default 90s start
+    # timeout, so systemd kept killing it mid-start and Restart=always
+    # looped forever -- the API on :6443 never came up. Give it 10min.
+    systemd.services.k3s.serviceConfig.TimeoutStartSec = "10min";
+
     services = {
         k3s = {
             enable = true;
