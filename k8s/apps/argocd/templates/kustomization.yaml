@@ -15,9 +15,9 @@ resources:
   - media.yaml
   - nextcloud.yaml
   - homepage.yaml
-  - code-server.yaml
-  - lathibandolaise.yaml
-  - dbgate.yaml
+  # - code-server.yaml
+  # - lathibandolaise.yaml
+  # - dbgate.yaml
   - actual-budget.yaml
   # Monitoring stack temporarily disabled to free RAM on the memory-constrained
   # node (~7.5 GiB). This prunes kube-prometheus-stack (Prometheus + Grafana),
